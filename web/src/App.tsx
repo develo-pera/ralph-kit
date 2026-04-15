@@ -6,6 +6,7 @@ import { BlockingCard } from './components/BlockingCard';
 import { AddDialog } from './components/AddDialog';
 import { LogPanel } from './components/LogPanel';
 import { Toast } from './components/Toast';
+import { ThemeToggle } from './components/ThemeToggle';
 import { useState } from 'react';
 
 const COLUMNS: Array<{ id: ColumnId; title: string }> = [
@@ -55,6 +56,7 @@ export function App() {
               + Add task
             </button>
           )}
+          <ThemeToggle />
         </div>
       </header>
 

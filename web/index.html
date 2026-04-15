@@ -4,6 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Ralph Kit — Kanban</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('ralph-kit.theme');
+          var pref = stored === 'light' || stored === 'dark' ? stored : 'system';
+          var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,14 +1,48 @@
 :root {
+  color-scheme: light;
+
+  /* shadcn core tokens — light */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.985 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.55 0.18 250);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.96 0.005 240);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.96 0.005 240);
+  --muted-foreground: oklch(0.55 0.015 240);
+  --border: oklch(0.9 0.005 240);
+  --destructive: oklch(0.577 0.245 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.55 0.18 250);
+  --radius: 0.625rem;
+
+  /* app-specific (follow shadcn pair convention) */
+  --success: oklch(0.55 0.15 145);
+  --warning: oklch(0.63 0.15 70);
+}
+
+.dark {
   color-scheme: dark;
-  --bg: #0e1116;
-  --panel: #161b22;
-  --border: #30363d;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #58a6ff;
-  --ok: #3fb950;
-  --warn: #d29922;
-  --bad: #f85149;
+
+  --background: oklch(0.175 0.009 260);
+  --foreground: oklch(0.945 0.012 240);
+  --card: oklch(0.225 0.012 260);
+  --card-foreground: oklch(0.945 0.012 240);
+  --primary: oklch(0.72 0.15 250);
+  --primary-foreground: oklch(0.175 0.009 260);
+  --secondary: oklch(0.33 0.012 260);
+  --secondary-foreground: oklch(0.945 0.012 240);
+  --muted: oklch(0.28 0.012 260);
+  --muted-foreground: oklch(0.68 0.015 240);
+  --border: oklch(0.33 0.012 260);
+  --destructive: oklch(0.68 0.22 25);
+  --destructive-foreground: oklch(0.945 0.012 240);
+  --ring: oklch(0.72 0.15 250);
+
+  --success: oklch(0.7 0.17 145);
+  --warning: oklch(0.73 0.14 75);
 }
 
 * { box-sizing: border-box; }
@@ -16,8 +50,8 @@
 body {
   margin: 0;
   font: 14px/1.4 ui-sans-serif, -apple-system, "SF Pro Text", system-ui;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--background);
+  color: var(--foreground);
   height: 100vh;
 }
 
@@ -33,7 +67,7 @@ header {
   justify-content: space-between;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--card);
 }
 
 header h1 {
@@ -43,23 +77,23 @@ header h1 {
   letter-spacing: 0.02em;
 }
 
-.meta { display: flex; gap: 14px; align-items: center; color: var(--muted); }
+.meta { display: flex; gap: 14px; align-items: center; color: var(--muted-foreground); }
 
 .pill {
   padding: 2px 8px;
   border-radius: 999px;
-  background: #21262d;
+  background: var(--muted);
   font-size: 12px;
 }
-.pill.ok { color: var(--ok); }
-.pill.warn { color: var(--warn); }
-.pill.bad { color: var(--bad); }
+.pill.ok { color: var(--success); }
+.pill.warn { color: var(--warning); }
+.pill.bad { color: var(--destructive); }
 
 button, .btn-secondary {
-  background: var(--accent);
-  color: #0d1117;
+  background: var(--primary);
+  color: var(--primary-foreground);
   border: 0;
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 4px);
   padding: 6px 12px;
   font-weight: 600;
   cursor: pointer;
@@ -70,7 +104,7 @@ button, .btn-secondary {
   gap: 6px;
 }
 button:hover, .btn-secondary:hover { filter: brightness(1.1); }
-.btn-secondary { background: #30363d; color: var(--text); }
+.btn-secondary { background: var(--secondary); color: var(--secondary-foreground); }
 
 .hidden { display: none !important; }
 
@@ -79,10 +113,10 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
   top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  background: #3d1e1e;
-  color: var(--text);
-  border: 1px solid var(--bad);
-  border-radius: 6px;
+  background: color-mix(in oklch, var(--destructive) 18%, var(--card));
+  color: var(--foreground);
+  border: 1px solid var(--destructive);
+  border-radius: calc(var(--radius) - 4px);
   padding: 10px 16px;
   font-size: 13px;
   z-index: 40;
@@ -101,9 +135,10 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
 #board.gated .col { opacity: 0.25; pointer-events: none; filter: grayscale(0.5); }
 
 .col {
-  background: var(--panel);
+  background: var(--card);
+  color: var(--card-foreground);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   min-height: 200px;
@@ -112,64 +147,76 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--muted-foreground);
   padding: 12px 14px 6px;
   margin: 0;
   border-bottom: 1px solid var(--border);
 }
-.col[data-col="blocked"] h2 { color: var(--bad); }
-.col[data-col="inProgress"] h2 { color: var(--warn); }
-.col[data-col="done"] h2 { color: var(--ok); }
+.col[data-col="blocked"] h2 { color: var(--destructive); }
+.col[data-col="inProgress"] h2 { color: var(--warning); }
+.col[data-col="done"] h2 { color: var(--success); }
 .col ul { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow: auto; }
 
 .card {
-  background: #0d1117;
+  background: var(--background);
+  color: var(--card-foreground);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 4px);
   padding: 8px 10px;
   cursor: grab;
   user-select: none;
 }
 .card:active { cursor: grabbing; }
 .card.done { opacity: 0.55; text-decoration: line-through; }
-.card.banner { border-color: var(--bad); background: #2a1616; cursor: default; }
+.card.banner {
+  border-color: var(--destructive);
+  background: color-mix(in oklch, var(--destructive) 22%, var(--card));
+  cursor: default;
+}
 .card .prio {
   display: block;
   font-size: 10px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.col.drop-target { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.col.drop-target { outline: 2px dashed var(--ring); outline-offset: -4px; }
 
 .blocking-card {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--panel);
-  border: 1px solid var(--accent);
-  border-radius: 10px;
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
   padding: 28px 32px;
   max-width: 520px;
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
   z-index: 10;
 }
-.blocking-card h2 { margin: 0 0 10px; font-size: 18px; color: var(--accent); }
-.blocking-card p { margin: 8px 0; color: var(--text); }
-.blocking-card code { background: #0d1117; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: ui-monospace, "SF Mono", monospace; }
+.blocking-card h2 { margin: 0 0 10px; font-size: 18px; color: var(--primary); }
+.blocking-card p { margin: 8px 0; color: var(--card-foreground); }
+.blocking-card code {
+  background: var(--background);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", monospace;
+}
 .blocking-card button code,
 .blocking-card .btn-secondary code {
-  background: rgba(13, 17, 23, 0.2);
+  background: color-mix(in oklch, var(--background) 20%, transparent);
   color: inherit;
   padding: 1px 5px;
   font-size: 12px;
 }
 .blocking-card .reasons {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 12px;
   text-align: left;
   font-family: ui-monospace, "SF Mono", monospace;
@@ -185,7 +232,7 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
 
 .log-panel {
   border-top: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -196,21 +243,21 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
   align-items: center;
   gap: 10px;
   padding: 6px 20px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font: 12px ui-monospace, "SF Mono", monospace;
-  background: var(--panel);
+  background: var(--card);
   border-top: 1px solid var(--border);
 }
-.log-bar:hover { background: #1c2128; color: var(--text); }
+.log-bar:hover { background: var(--secondary); color: var(--card-foreground); }
 .log-bar .chevron { transition: transform 150ms ease; }
 .log-panel:not(.collapsed) .log-bar .chevron { transform: rotate(90deg); }
-.log-bar .log-title { font-weight: 600; color: var(--text); }
+.log-bar .log-title { font-weight: 600; color: var(--card-foreground); }
 .log-bar .log-preview {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 
 .log-body { display: none; }
@@ -224,23 +271,23 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
   border-bottom: 1px solid var(--border);
   font: 12px ui-sans-serif, system-ui;
 }
-.log-header .log-title { font-weight: 600; color: var(--text); letter-spacing: 0.04em; }
+.log-header .log-title { font-weight: 600; color: var(--card-foreground); letter-spacing: 0.04em; }
 .log-actions { display: flex; gap: 6px; }
 .log-actions button {
-  background: #30363d;
-  color: var(--text);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
   padding: 3px 10px;
   font-size: 11px;
   font-weight: 500;
   border-radius: 4px;
 }
-.log-actions button.active { background: var(--accent); color: #0d1117; }
+.log-actions button.active { background: var(--primary); color: var(--primary-foreground); }
 
 #live {
   margin: 0;
   padding: 10px 20px;
   font: 12px/1.4 ui-monospace, "SF Mono", monospace;
-  color: var(--muted);
+  color: var(--muted-foreground);
   white-space: pre-wrap;
   overflow: auto;
   flex: 1;
@@ -248,24 +295,37 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
 
 dialog {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--card-foreground);
   padding: 18px 22px;
   min-width: 340px;
 }
 dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
 dialog h3 { margin: 0 0 12px; }
-dialog label { display: block; margin: 10px 0; font-size: 12px; color: var(--muted); }
+dialog label { display: block; margin: 10px 0; font-size: 12px; color: var(--muted-foreground); }
 dialog input, dialog select {
   width: 100%;
   margin-top: 4px;
   padding: 6px 8px;
-  background: #0d1117;
-  color: var(--text);
+  background: var(--background);
+  color: var(--foreground);
   border: 1px solid var(--border);
   border-radius: 4px;
   font: inherit;
 }
 dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin: 14px 0 0; }
-dialog menu button[value="cancel"] { background: #30363d; color: var(--text); }
+dialog menu button[value="cancel"] { background: var(--secondary); color: var(--secondary-foreground); }
+
+.theme-toggle {
+  background: transparent;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.theme-toggle:hover { background: var(--secondary); color: var(--foreground); filter: none; }
