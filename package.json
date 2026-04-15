@@ -10,6 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "board": "node bin/ralph-kit.js board",
+    "dev": "concurrently -n api,web -c blue,green \"node bin/ralph-kit.js board --dir ${RALPH_KIT_DEV_DIR:-fixtures/demo}\" \"vite --config web/vite.config.ts\"",
     "build": "vite build --config web/vite.config.ts",
     "prepublishOnly": "npm run build"
   },
