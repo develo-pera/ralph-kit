@@ -1,6 +1,6 @@
 # ralph-kit
 
-Conversational questionnaire + local Kanban dashboard for [Ralph Loop](https://github.com/frankbria/ralph-claude-code) projects.
+Conversational questionnaire + local Kanban dashboard for [Ralph Loop](https://ghuntley.com/ralph/) projects.
 
 Stop hand-writing markdown. Run an interview in Claude Code chat, get your `PROMPT.md`, `AGENT.md`, `specs/*.md`, `fix_plan.md`, and `backlog.md` generated for you. Then watch Ralph work in a live Kanban board.
 
