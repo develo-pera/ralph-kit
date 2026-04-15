@@ -267,16 +267,25 @@ We follow [semver](https://semver.org/):
 
 ### Cutting a release
 
-From a clean `main`:
+Releases are automated via GitHub Actions + npm Trusted Publisher (OIDC). From a clean `main`:
 
 ```bash
-npm test && npm run build        # sanity
-npm version minor                # bumps package.json, creates a git tag
-git push --follow-tags           # pushes the tag
-npm publish                      # or let a GitHub Action publish on tag
+npm version patch        # or minor / major — bumps package.json, commits, tags vX.Y.Z
+git push --follow-tags   # pushes the tag; CI does the rest
 ```
 
-`prepublishOnly` runs `npm test && npm run build` automatically, so `npm publish` can't ship a broken build.
+Pushing a `v*` tag triggers `.github/workflows/release.yml`, which:
+
+1. Runs typechecks + tests + build from a clean CI checkout.
+2. Verifies the tag matches `package.json` version (safety net).
+3. `npm publish --access public --provenance` — OIDC-authenticated, no tokens. Produces a signed provenance attestation visible on the npm page.
+4. Creates a GitHub Release with auto-generated notes from the PRs merged since the last tag.
+
+No local `npm publish`, no long-lived tokens, no OTP dance. If CI is red, the publish doesn't happen.
+
+### Rolling back
+
+`npm unpublish <pkg>@<version>` works within 72 hours of publish. After that, cut a new patch version that reverts the offending change — rolling forward is the norm.
 
 ---
 
