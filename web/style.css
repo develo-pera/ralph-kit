@@ -156,7 +156,14 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
 }
 .blocking-card h2 { margin: 0 0 10px; font-size: 18px; color: var(--accent); }
 .blocking-card p { margin: 8px 0; color: var(--text); }
-.blocking-card code { background: #0d1117; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+.blocking-card code { background: #0d1117; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: ui-monospace, "SF Mono", monospace; }
+.blocking-card button code,
+.blocking-card .btn-secondary code {
+  background: rgba(13, 17, 23, 0.2);
+  color: inherit;
+  padding: 1px 5px;
+  font-size: 12px;
+}
 .blocking-card .reasons {
   color: var(--muted);
   font-size: 12px;
