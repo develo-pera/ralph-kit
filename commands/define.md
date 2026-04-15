@@ -4,7 +4,7 @@ argument-hint: (no args — fully interactive)
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
-# /ralph-define
+# /ralph-kit:define
 
 You are running the Ralph-Kit project-definition interview. The target project is the user's current working directory; all writes go to `./​.ralph/`.
 

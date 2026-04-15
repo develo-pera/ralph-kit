@@ -62,7 +62,7 @@ program
     if (fs.existsSync(fixPlan)) {
       const txt = fs.readFileSync(fixPlan, 'utf8');
       if (/Status:\s*BLOCKED/i.test(txt)) {
-        console.log(chalk.yellow('  ! fix_plan.md is BLOCKED — run /ralph-define in Claude Code'));
+        console.log(chalk.yellow('  ! fix_plan.md is BLOCKED — run /ralph-kit:define in Claude Code'));
       }
     }
     process.exit(ok ? 0 : 1);
@@ -74,19 +74,28 @@ program
   .option('--force', 'overwrite existing commands')
   .action((opts) => {
     const src = path.join(__dirname, '..', 'commands');
-    const dst = path.join(os.homedir(), '.claude', 'commands');
+    const dst = path.join(os.homedir(), '.claude', 'commands', 'ralph-kit');
+    const legacyDst = path.join(os.homedir(), '.claude', 'commands');
     fs.mkdirSync(dst, { recursive: true });
     const files = fs.readdirSync(src).filter((f) => f.endsWith('.md'));
     for (const f of files) {
       const target = path.join(dst, f);
       if (fs.existsSync(target) && !opts.force) {
-        console.log(chalk.yellow(`  ~ ${f} exists (use --force to overwrite)`));
+        console.log(chalk.yellow(`  ~ ralph-kit/${f} exists (use --force to overwrite)`));
         continue;
       }
       fs.copyFileSync(path.join(src, f), target);
-      console.log(chalk.green(`  ✓ installed ${f}`));
+      console.log(chalk.green(`  ✓ installed ralph-kit/${f}`));
     }
-    console.log(chalk.gray(`\nSlash commands available: ${files.map((f) => '/' + f.replace('.md', '')).join(', ')}`));
+    const legacyNames = ['ralph-define.md', 'ralph-add-feature.md', 'ralph-add-task.md', 'ralph-revise.md'];
+    for (const f of legacyNames) {
+      const p = path.join(legacyDst, f);
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+        console.log(chalk.gray(`  - removed legacy ${f}`));
+      }
+    }
+    console.log(chalk.gray(`\nSlash commands available: ${files.map((f) => '/ralph-kit:' + f.replace('.md', '')).join(', ')}`));
   });
 
 program.parseAsync(process.argv);

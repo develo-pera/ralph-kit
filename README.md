@@ -27,12 +27,12 @@ ralph-kit board
 # → http://localhost:4777
 
 # 2. In Claude Code chat, define or update the project (never write markdown again)
-/ralph-define
+/ralph-kit:define
 
 # 3. Add new work without editing files
-/ralph-add-feature
-/ralph-add-task
-/ralph-revise
+/ralph-kit:add-feature
+/ralph-kit:add-task
+/ralph-kit:revise
 ```
 
 The board live-updates while `ralph --monitor` runs in another pane.
@@ -41,16 +41,18 @@ The board live-updates while `ralph --monitor` runs in another pane.
 
 | Slash command | What it does |
 |---|---|
-| `/ralph-define` | Interactive questionnaire. Detects existing `.ralph/` and offers **create / update / supplement** modes. Writes `PROMPT.md`, `AGENT.md`, `specs/*.md`, and initial `fix_plan.md` after diff review. |
-| `/ralph-add-feature` | One-feature mini-spec → adds `specs/<slug>.md` + derived tasks to `fix_plan.md`. |
-| `/ralph-add-task` | Single checkbox line appended under the priority you pick. |
-| `/ralph-revise` | Dialog-edit an existing `PROMPT.md`, `AGENT.md`, or one spec file. |
+| `/ralph-kit:define` | Interactive questionnaire. Detects existing `.ralph/` and offers **create / update / supplement** modes. Writes `PROMPT.md`, `AGENT.md`, `specs/*.md`, and initial `fix_plan.md` after diff review. |
+| `/ralph-kit:add-feature` | One-feature mini-spec → adds `specs/<slug>.md` + derived tasks to `fix_plan.md`. |
+| `/ralph-kit:add-task` | Single checkbox line appended under the priority you pick. |
+| `/ralph-kit:revise` | Dialog-edit an existing `PROMPT.md`, `AGENT.md`, or one spec file. |
+
+All slash commands are namespaced under `ralph-kit:` so it's always clear which package owns them.
 
 | CLI command | What it does |
 |---|---|
 | `ralph-kit board` | Local web Kanban on `:4777`. Reads `./​.ralph/` in cwd. |
 | `ralph-kit doctor` | Validates `.ralph/` layout; reports missing or malformed files. |
-| `ralph-kit install-commands` | Copies slash commands into `~/.claude/commands/` (idempotent). |
+| `ralph-kit install-commands` | Copies slash commands into `~/.claude/commands/ralph-kit/` (idempotent; removes legacy un-namespaced copies). |
 
 ## Board columns
 

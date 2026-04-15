@@ -4,7 +4,7 @@ argument-hint: [file — PROMPT | AGENT | spec/<name> | fix_plan]
 allowed-tools: Read, Write, Edit, Glob, AskUserQuestion
 ---
 
-# /ralph-revise
+# /ralph-kit:revise
 
 Make a conversational edit to one Ralph control file, without the user writing markdown.
 

@@ -4,13 +4,13 @@ argument-hint: [optional feature name]
 allowed-tools: Read, Write, Edit, AskUserQuestion
 ---
 
-# /ralph-add-feature
+# /ralph-kit:add-feature
 
 Add a single feature to the current Ralph project (`./​.ralph/`).
 
 ## Step 1 — Prerequisites
 
-Read `.ralph/fix_plan.md` and `.ralph/PROMPT.md`. If either is missing or `fix_plan.md` starts with `Status: BLOCKED`, stop and tell the user to run `/ralph-define` first.
+Read `.ralph/fix_plan.md` and `.ralph/PROMPT.md`. If either is missing or `fix_plan.md` starts with `Status: BLOCKED`, stop and tell the user to run `/ralph-kit:define` first.
 
 ## Step 2 — Feature intake
 
