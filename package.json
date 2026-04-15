@@ -1,6 +1,6 @@
 {
   "name": "@develo-pera/ralph-kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Conversational questionnaire + local Kanban dashboard for Ralph Loop projects",
   "bin": {
     "ralph-kit": "./dist/bin/ralph-kit.js"
