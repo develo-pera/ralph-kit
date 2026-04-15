@@ -31,7 +31,7 @@ program
   .description('Start the local Kanban dashboard')
   .option('-p, --port <port>', 'port to listen on', '4777')
   .option('-d, --dir <dir>', 'project dir (must contain .ralph/)', process.cwd())
-  .action(async (opts) => {
+  .action(async function boardAction(opts) {
     const { start } = require('../server');
     const cwd = path.resolve(opts.dir);
     if (!fs.existsSync(path.join(cwd, '.ralph'))) {
@@ -39,8 +39,29 @@ program
       process.exit(1);
     }
     doctor.ensureBacklog(cwd);
-    const { port } = await start({ port: Number(opts.port), cwd });
+    const requested = Number(opts.port);
+    const strictPort = this.getOptionValueSource('port') === 'cli';
+    let result;
+    try {
+      result = await start({ port: requested, cwd, strictPort });
+    } catch (err) {
+      if (err && err.code === 'EADDRINUSE') {
+        console.error(
+          chalk.red(
+            strictPort
+              ? `Port ${requested} is already in use (you asked for it explicitly — not auto-incrementing).`
+              : `Couldn't find a free port near ${requested}. Is another ralph-kit instance stuck?`,
+          ),
+        );
+        process.exit(1);
+      }
+      throw err;
+    }
+    const { port } = result;
     const health = doctor.inspect(cwd);
+    if (port !== requested) {
+      console.log(chalk.yellow(`  port ${requested} in use — using ${port} instead`));
+    }
     console.log(chalk.green(`ralph-kit board  →  http://localhost:${port}`));
     console.log(chalk.gray(`watching ${path.join(cwd, '.ralph')}`));
     if (health.state !== 'initialized') {
