@@ -149,10 +149,13 @@ export function buildBoard(cwd: string): Board {
   }
 
   if (snap.breakerOpen) {
+    const text = snap.breakerReason
+      ? `Ralph halted: ${snap.breakerReason}`
+      : 'Circuit breaker OPEN — Ralph halted';
     columns.blocked.push({
-      text: 'Circuit breaker OPEN — Ralph halted',
+      text,
       source: 'breaker',
-      priority: 'Breaker',
+      priority: 'Fix it, then delete .ralph/.circuit_breaker_state to reset',
       done: false,
       kind: 'banner',
     });
