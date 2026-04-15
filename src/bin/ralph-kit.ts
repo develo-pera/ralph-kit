@@ -6,7 +6,14 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 
 import * as doctor from '../lib/doctor';
-import { loadProfile } from '../lib/profile';
+import {
+  loadProfile,
+  writeProfile,
+  generateProfile,
+  profilePath,
+  type Profile,
+} from '../lib/profile';
+import { probe } from '../lib/probe';
 import { start } from '../server';
 import pkg from '../../package.json';
 
@@ -17,14 +24,52 @@ program
   .version(pkg.version);
 
 function missingRalphError(cwd: string, rootName: string): void {
-  console.error(chalk.red(`No ${rootName}/ directory found in ${cwd}.`));
+  console.error(chalk.red(`No Ralph Loop project detected in ${cwd}.`));
   console.error('');
-  console.error("Either (a) run your Ralph implementation's setup:");
-  console.error(chalk.gray('      ralph enable              # frankbria/ralph-claude-code'));
-  console.error(chalk.gray('      # other implementations: see their docs'));
+  console.error('(a) If you already have a Ralph Loop set up, let ralph-kit map it:');
+  console.error(chalk.gray('      ralph-kit map'));
   console.error('');
-  console.error("or (b) run ralph-kit's implementation-agnostic bootstrap:");
-  console.error(chalk.gray('      ralph-kit init'));
+  console.error('(b) If you\'re starting from scratch:');
+  console.error(chalk.gray(`      ralph-kit init                    # scaffold a minimal ${rootName}/ layout`));
+  console.error('');
+  console.error('(c) If you haven\'t installed a Ralph Loop implementation yet:');
+  console.error(chalk.gray('      see https://ghuntley.com/ralph/ for the pattern and implementations'));
+}
+
+function printProfileSummary(profile: Profile): void {
+  const pad = (s: string, n = 10) => s.padEnd(n);
+  const root = profile.root;
+  if (profile.loop) {
+    const fields = [profile.loop.countField, profile.loop.statusField].filter(Boolean).join(', ');
+    console.log(chalk.gray(`  ${pad('loop')}${profile.loop.file}${fields ? `  (${fields})` : ''}`));
+    if (profile.loop.fallback) {
+      const fb = [profile.loop.fallback.countField, profile.loop.fallback.statusField]
+        .filter(Boolean)
+        .join(', ');
+      console.log(
+        chalk.gray(`  ${pad('fallback')}${profile.loop.fallback.file}${fb ? `  (${fb})` : ''}`),
+      );
+    }
+  } else {
+    console.log(chalk.gray(`  ${pad('loop')}(none detected)`));
+  }
+  console.log(
+    chalk.gray(
+      `  ${pad('breaker')}${profile.breaker ? `${profile.breaker.file}${profile.breaker.reasonField ? `  (reason: ${profile.breaker.reasonField})` : ''}` : '(none detected)'}`,
+    ),
+  );
+  console.log(
+    chalk.gray(`  ${pad('live log')}${profile.liveLog ? profile.liveLog.file : '(none detected)'}`),
+  );
+  const fp = profile.fixPlan;
+  if (fp && (fp.blockedSections || fp.highSections || fp.completedSections)) {
+    console.log(chalk.gray(`  fix_plan sections:`));
+    if (fp.blockedSections) console.log(chalk.gray(`    ${pad('blocked', 11)}${fp.blockedSections.join(', ')}`));
+    if (fp.highSections) console.log(chalk.gray(`    ${pad('high', 11)}${fp.highSections.join(', ')}`));
+    if (fp.completedSections)
+      console.log(chalk.gray(`    ${pad('completed', 11)}${fp.completedSections.join(', ')}`));
+  }
+  console.log(chalk.gray(`  root dir: ${root}/`));
 }
 
 program
@@ -154,6 +199,74 @@ program
     console.log(
       chalk.gray(`\nSlash commands available: ${files.map((f) => '/ralph-kit:' + f.replace('.md', '')).join(', ')}`),
     );
+  });
+
+program
+  .command('map')
+  .description('Introspect the project and write a profile describing its Ralph Loop layout')
+  .option('-d, --dir <dir>', 'project dir', process.cwd())
+  .option('--dry-run', 'print what would be written without touching disk')
+  .option('--force', 'overwrite an existing .ralph-kit/profile.json')
+  .action((opts: { dir: string; dryRun?: boolean; force?: boolean }) => {
+    const cwd = path.resolve(opts.dir);
+    const probeResult = probe(cwd);
+    if (!probeResult.rootName) {
+      console.error(chalk.yellow(`No Ralph Loop project detected in ${cwd}.`));
+      console.error('');
+      console.error('If this is a new project, scaffold a starter layout first:');
+      console.error(chalk.gray('      ralph-kit init'));
+      process.exit(1);
+    }
+    const profile = generateProfile(probeResult);
+    console.log(chalk.green(`Detected Ralph project at  ${profile.root}/`));
+    printProfileSummary(profile);
+
+    const target = profilePath(cwd);
+    if (opts.dryRun) {
+      console.log('');
+      console.log(chalk.gray('(dry-run — nothing written)'));
+      return;
+    }
+    if (fs.existsSync(target) && !opts.force) {
+      console.log('');
+      console.log(
+        chalk.yellow(
+          `  ${path.relative(cwd, target)} already exists — pass --force to overwrite`,
+        ),
+      );
+      process.exit(2);
+    }
+    const written = writeProfile(cwd, profile);
+    console.log('');
+    console.log(chalk.green(`  ✓ wrote ${path.relative(cwd, written)}`));
+  });
+
+const profileCmd = program
+  .command('profile')
+  .description('Inspect ralph-kit\'s per-project profile');
+
+profileCmd
+  .command('show')
+  .description('Print the active profile for this project')
+  .option('-d, --dir <dir>', 'project dir', process.cwd())
+  .action((opts: { dir: string }) => {
+    const cwd = path.resolve(opts.dir);
+    const persisted = profilePath(cwd);
+    if (fs.existsSync(persisted)) {
+      const profile = loadProfile(cwd);
+      console.log(chalk.gray(`from ${path.relative(cwd, persisted)}:`));
+      console.log(JSON.stringify(profile, null, 2));
+      return;
+    }
+    const probed = probe(cwd);
+    if (!probed.rootName) {
+      console.error(chalk.yellow('No profile persisted and no Ralph Loop project detected.'));
+      console.error(chalk.gray('  run `ralph-kit map` in a project with a Ralph directory'));
+      process.exit(1);
+    }
+    const generated = generateProfile(probed);
+    console.log(chalk.gray('no persisted profile — `ralph-kit map` would produce:'));
+    console.log(JSON.stringify(generated, null, 2));
   });
 
 void program.parseAsync(process.argv);
