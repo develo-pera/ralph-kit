@@ -56,6 +56,15 @@ export function App() {
               + Add task
             </button>
           )}
+          <a
+            className="header-link"
+            href="https://github.com/develo-pera/ralph-kit"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open the ralph-kit repo on GitHub"
+          >
+            GitHub ↗
+          </a>
           <ThemeToggle />
         </div>
       </header>

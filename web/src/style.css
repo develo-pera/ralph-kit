@@ -317,6 +317,16 @@ dialog input, dialog select {
 dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin: 14px 0 0; }
 dialog menu button[value="cancel"] { background: var(--secondary); color: var(--secondary-foreground); }
 
+.header-link {
+  color: var(--muted-foreground);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+.header-link:hover { color: var(--foreground); background: var(--secondary); }
+
 .theme-toggle {
   background: transparent;
   color: var(--muted-foreground);
