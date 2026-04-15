@@ -82,13 +82,20 @@ export function buildBoard(cwd: string): Board {
     blocked: [],
     done: [],
   };
+  const pickNumber = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+  const pickString = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+  const loopCount =
+    pickNumber(snap.status?.loop_count) ?? pickNumber(snap.progress?.loop_count);
+  const loopStatus =
+    pickString(snap.status?.status) ?? pickString(snap.progress?.status);
+
   const meta: BoardMeta = {
     state: health.state,
     reasons: health.reasons,
     blocked: false,
     liveTail: snap.liveTail,
-    loopCount: (snap.progress && typeof snap.progress.loop_count === 'number' ? snap.progress.loop_count : null),
-    loopStatus: (snap.progress && typeof snap.progress.status === 'string' ? snap.progress.status : null),
+    loopCount,
+    loopStatus,
     lastLiveLine: snap.liveTail[snap.liveTail.length - 1] || null,
   };
 
