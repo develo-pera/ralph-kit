@@ -77,6 +77,16 @@ header h1 {
   letter-spacing: 0.02em;
 }
 
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 .meta { display: flex; gap: 14px; align-items: center; color: var(--muted-foreground); }
 
 .pill {

@@ -44,7 +44,10 @@ export function App() {
   return (
     <>
       <header>
-        <h1>Ralph&nbsp;Kit</h1>
+        <div className="brand">
+          <img src="/logo.png" alt="" className="brand-logo" />
+          <h1>Ralph&nbsp;Kit</h1>
+        </div>
         <div className="meta">
           <span id="title">{title}</span>
           <span id="loop">loop {loopCount}</span>
