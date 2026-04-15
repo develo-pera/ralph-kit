@@ -18,8 +18,33 @@ export interface Snapshot {
   status: StatusJson | null;
   progress: ProgressJson | null;
   breakerOpen: boolean;
+  breakerReason: string | null;
   liveTail: string[];
   exists: boolean;
+}
+
+interface BreakerState {
+  open: boolean;
+  reason: string | null;
+}
+
+export function parseBreakerState(raw: string | null | undefined): BreakerState {
+  if (!raw) return { open: false, reason: null };
+  try {
+    const obj = JSON.parse(raw) as { state?: unknown; reason?: unknown };
+    if (obj && typeof obj.state === 'string') {
+      return {
+        open: /OPEN/i.test(obj.state),
+        reason: typeof obj.reason === 'string' && obj.reason.trim() ? obj.reason.trim() : null,
+      };
+    }
+  } catch {
+    /* fall through */
+  }
+  return {
+    open: /\bOPEN\b/.test(raw.split('\n')[0] || ''),
+    reason: null,
+  };
 }
 
 export function ralphDir(cwd?: string): string {
@@ -46,15 +71,15 @@ export function snapshot(cwd: string): Snapshot {
   const dir = ralphDir(cwd);
   const status = readJSON<StatusJson>(path.join(dir, 'status.json'));
   const progress = readJSON<ProgressJson>(path.join(dir, 'progress.json'));
-  const cbRaw = readText(path.join(dir, '.circuit_breaker_state')) || '';
-  const breakerOpen =
-    /"state"\s*:\s*"OPEN"/i.test(cbRaw) || /\bOPEN\b/.test(cbRaw.split('\n')[0] || '');
+  const cbRaw = readText(path.join(dir, '.circuit_breaker_state'));
+  const breaker = parseBreakerState(cbRaw);
   const liveLog = readText(path.join(dir, 'live.log')) || '';
   const tail = liveLog.split('\n').filter(Boolean).slice(-20);
   return {
     status,
     progress,
-    breakerOpen,
+    breakerOpen: breaker.open,
+    breakerReason: breaker.reason,
     liveTail: tail,
     exists: fs.existsSync(dir),
   };
