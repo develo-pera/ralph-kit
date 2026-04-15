@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { parse, serialize, addTask, toggleTask, removeTask, allTasks } = require('./backlog_parser');
+import { parse, serialize, addTask, toggleTask, removeTask, allTasks } from './backlog_parser';
 
 const SAMPLE = `# Backlog
 
@@ -38,11 +36,11 @@ describe('backlog_parser', () => {
     expect(doc.groups.Ideas.some((t) => t.text === 'New idea')).toBe(true);
 
     expect(toggleTask(doc, 'Daily digest')).toBe(true);
-    expect(doc.groups.Ideas.find((t) => t.text === 'Daily digest').done).toBe(true);
+    expect(doc.groups.Ideas.find((t) => t.text === 'Daily digest')!.done).toBe(true);
 
     const removed = removeTask(doc, 'RSS ingestion');
-    expect(removed.task.text).toBe('RSS ingestion');
-    expect(removed.group).toBe('Features');
+    expect(removed!.task.text).toBe('RSS ingestion');
+    expect(removed!.group).toBe('Features');
     expect(doc.groups.Features.some((t) => t.text === 'RSS ingestion')).toBe(false);
   });
 

@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { parse, serialize, addTask, toggleTask, moveTask, toBoard } = require('./fix_plan_parser');
+import { parse, serialize, addTask, toggleTask, moveTask, toBoard } from './fix_plan_parser';
 
 const SAMPLE = `# Ralph Fix Plan
 

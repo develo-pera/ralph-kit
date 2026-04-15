@@ -1,21 +1,33 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const fs = require('fs');
-const path = require('path');
+export interface ProgressJson {
+  loop_count?: number;
+  status?: string;
+  [key: string]: unknown;
+}
 
-function ralphDir(cwd) {
+export interface Snapshot {
+  status: unknown;
+  progress: ProgressJson | null;
+  breakerOpen: boolean;
+  liveTail: string[];
+  exists: boolean;
+}
+
+export function ralphDir(cwd?: string): string {
   return path.join(cwd || process.cwd(), '.ralph');
 }
 
-function readJSON(file) {
+export function readJSON<T = unknown>(file: string): T | null {
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
   } catch {
     return null;
   }
 }
 
-function readText(file) {
+export function readText(file: string): string | null {
   try {
     return fs.readFileSync(file, 'utf8');
   } catch {
@@ -23,12 +35,13 @@ function readText(file) {
   }
 }
 
-function snapshot(cwd) {
+export function snapshot(cwd: string): Snapshot {
   const dir = ralphDir(cwd);
   const status = readJSON(path.join(dir, 'status.json'));
-  const progress = readJSON(path.join(dir, 'progress.json'));
+  const progress = readJSON<ProgressJson>(path.join(dir, 'progress.json'));
   const cbRaw = readText(path.join(dir, '.circuit_breaker_state')) || '';
-  const breakerOpen = /"state"\s*:\s*"OPEN"/i.test(cbRaw) || /\bOPEN\b/.test(cbRaw.split('\n')[0] || '');
+  const breakerOpen =
+    /"state"\s*:\s*"OPEN"/i.test(cbRaw) || /\bOPEN\b/.test(cbRaw.split('\n')[0] || '');
   const liveLog = readText(path.join(dir, 'live.log')) || '';
   const tail = liveLog.split('\n').filter(Boolean).slice(-20);
   return {
@@ -40,7 +53,7 @@ function snapshot(cwd) {
   };
 }
 
-function watchedPaths(cwd) {
+export function watchedPaths(cwd: string): string[] {
   const dir = ralphDir(cwd);
   return [
     path.join(dir, 'fix_plan.md'),
@@ -53,5 +66,3 @@ function watchedPaths(cwd) {
     path.join(dir, 'live.log'),
   ];
 }
-
-module.exports = { ralphDir, snapshot, watchedPaths, readJSON, readText };

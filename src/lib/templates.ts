@@ -1,6 +1,4 @@
-'use strict';
-
-function promptTemplate() {
+export function promptTemplate(): string {
   return `# Ralph Development Instructions
 
 ## Context
@@ -43,7 +41,7 @@ Follow fix_plan.md and choose the most important item to implement next.
 `;
 }
 
-function fixPlanTemplate() {
+export function fixPlanTemplate(): string {
   return `# Ralph Fix Plan
 
 ## Status: BLOCKED - Needs Project Definition
@@ -62,7 +60,7 @@ Run \`/ralph-kit:define\` in Claude Code to define this project.
 `;
 }
 
-function agentTemplate() {
+export function agentTemplate(): string {
   return `# Ralph Agent Configuration
 
 ## Build Instructions
@@ -84,5 +82,3 @@ echo 'No run command configured'
 \`\`\`
 `;
 }
-
-module.exports = { promptTemplate, fixPlanTemplate, agentTemplate };

@@ -1,17 +1,32 @@
-'use strict';
+export const DEFAULT_GROUP = 'Ideas';
 
-const DEFAULT_GROUP = 'Ideas';
+export interface BacklogTask {
+  indent: string;
+  done: boolean;
+  text: string;
+}
 
-function parse(markdown) {
+export interface BacklogDoc {
+  title: string | null;
+  groups: Record<string, BacklogTask[]>;
+  groupOrder: string[];
+  preamble: string[];
+}
+
+export interface FlatTask extends BacklogTask {
+  group: string;
+}
+
+export function parse(markdown: string | null | undefined): BacklogDoc {
   const lines = (markdown || '').split('\n');
-  const doc = {
+  const doc: BacklogDoc = {
     title: null,
     groups: {},
     groupOrder: [],
     preamble: [],
   };
 
-  let current = null;
+  let current: string | null = null;
   let sawTitle = false;
 
   for (const raw of lines) {
@@ -51,14 +66,14 @@ function parse(markdown) {
   return doc;
 }
 
-function parseTaskLine(line) {
+function parseTaskLine(line: string): BacklogTask | null {
   const m = line.match(/^(\s*)- \[( |x|X)\]\s+(.*\S)\s*$/);
   if (!m) return null;
   return { indent: m[1], done: m[2].toLowerCase() === 'x', text: m[3] };
 }
 
-function serialize(doc) {
-  const out = [];
+export function serialize(doc: BacklogDoc): string {
+  const out: string[] = [];
   if (doc.title) out.push(`# ${doc.title}`, '');
   for (const name of doc.groupOrder) {
     out.push(`## ${name}`);
@@ -70,7 +85,7 @@ function serialize(doc) {
   return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '') + '\n';
 }
 
-function ensureGroup(doc, group) {
+export function ensureGroup(doc: BacklogDoc, group: string): BacklogTask[] {
   if (!doc.groups[group]) {
     doc.groups[group] = [];
     doc.groupOrder.push(group);
@@ -78,12 +93,12 @@ function ensureGroup(doc, group) {
   return doc.groups[group];
 }
 
-function addTask(doc, text, group = DEFAULT_GROUP) {
+export function addTask(doc: BacklogDoc, text: string, group: string = DEFAULT_GROUP): BacklogDoc {
   ensureGroup(doc, group).push({ indent: '', done: false, text });
   return doc;
 }
 
-function toggleTask(doc, text) {
+export function toggleTask(doc: BacklogDoc, text: string): boolean {
   for (const name of doc.groupOrder) {
     for (const t of doc.groups[name]) {
       if (t.text === text) {
@@ -95,7 +110,7 @@ function toggleTask(doc, text) {
   return false;
 }
 
-function removeTask(doc, text) {
+export function removeTask(doc: BacklogDoc, text: string): { task: BacklogTask; group: string } | null {
   for (const name of doc.groupOrder) {
     const idx = doc.groups[name].findIndex((t) => t.text === text);
     if (idx >= 0) {
@@ -106,15 +121,15 @@ function removeTask(doc, text) {
   return null;
 }
 
-function allTasks(doc) {
-  const out = [];
+export function allTasks(doc: BacklogDoc): FlatTask[] {
+  const out: FlatTask[] = [];
   for (const name of doc.groupOrder) {
     for (const t of doc.groups[name]) out.push({ ...t, group: name });
   }
   return out;
 }
 
-function defaultContent() {
+export function defaultContent(): string {
   return `# Backlog
 
 Your capture inbox. Ralph does not read this file — use \`/ralph-kit:promote\` or drag to **To Do** when an item is ready for Ralph to work on.
@@ -127,15 +142,3 @@ Your capture inbox. Ralph does not read this file — use \`/ralph-kit:promote\`
 ## Bugs
 `;
 }
-
-module.exports = {
-  DEFAULT_GROUP,
-  parse,
-  serialize,
-  addTask,
-  toggleTask,
-  removeTask,
-  ensureGroup,
-  allTasks,
-  defaultContent,
-};

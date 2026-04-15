@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createRequire } from 'module';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-const require = createRequire(import.meta.url);
-const { promoteToTodo, demoteToBacklog } = require('./promote');
-const backlogParser = require('./backlog_parser');
-const fixPlanParser = require('./fix_plan_parser');
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { promoteToTodo, demoteToBacklog } from './promote';
+import * as backlogParser from './backlog_parser';
+import * as fixPlanParser from './fix_plan_parser';
 
-let tmp;
+let tmp: string;
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ralph-kit-test-'));

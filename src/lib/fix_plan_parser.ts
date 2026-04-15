@@ -1,10 +1,37 @@
-'use strict';
+export const PRIORITY_ORDER = ['High Priority', 'Medium Priority', 'Low Priority', 'Completed'] as const;
 
-const PRIORITY_ORDER = ['High Priority', 'Medium Priority', 'Low Priority', 'Completed'];
+export interface Task {
+  indent: string;
+  done: boolean;
+  text: string;
+}
 
-function parse(markdown) {
+export interface FixPlanDoc {
+  title: string | null;
+  statusLine: string | null;
+  sections: Record<string, Task[]>;
+  sectionOrder: string[];
+  preamble: string[];
+  notes: string[];
+}
+
+export interface BoardCard {
+  text: string;
+  priority: string;
+  done: boolean;
+}
+
+export interface BoardView {
+  upNext: BoardCard[];
+  inProgress: BoardCard[];
+  backlog: BoardCard[];
+  done: BoardCard[];
+  blocked: BoardCard[];
+}
+
+export function parse(markdown: string): FixPlanDoc {
   const lines = markdown.split('\n');
-  const doc = {
+  const doc: FixPlanDoc = {
     title: null,
     statusLine: null,
     sections: {},
@@ -13,7 +40,7 @@ function parse(markdown) {
     notes: [],
   };
 
-  let current = null;
+  let current: string | null = null;
   let inNotes = false;
   let sawTitle = false;
 
@@ -68,7 +95,7 @@ function parse(markdown) {
   return doc;
 }
 
-function parseTaskLine(line) {
+function parseTaskLine(line: string): Task | null {
   const m = line.match(/^(\s*)- \[( |x|X)\]\s+(.*\S)\s*$/);
   if (!m) return null;
   return {
@@ -78,8 +105,8 @@ function parseTaskLine(line) {
   };
 }
 
-function serialize(doc) {
-  const out = [];
+export function serialize(doc: FixPlanDoc): string {
+  const out: string[] = [];
   if (doc.title) out.push(`# ${doc.title}`, '');
   if (doc.statusLine) out.push(`## ${doc.statusLine}`, '');
 
@@ -100,7 +127,7 @@ function serialize(doc) {
   return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '') + '\n';
 }
 
-function ensureSection(doc, name) {
+export function ensureSection(doc: FixPlanDoc, name: string): Task[] {
   if (!doc.sections[name]) {
     doc.sections[name] = [];
     doc.sectionOrder.push(name);
@@ -108,13 +135,13 @@ function ensureSection(doc, name) {
   return doc.sections[name];
 }
 
-function addTask(doc, priority, text) {
+export function addTask(doc: FixPlanDoc, priority: string, text: string): FixPlanDoc {
   const list = ensureSection(doc, priority);
   list.push({ indent: '', done: false, text });
   return doc;
 }
 
-function toggleTask(doc, text) {
+export function toggleTask(doc: FixPlanDoc, text: string): boolean {
   for (const name of doc.sectionOrder) {
     for (const t of doc.sections[name]) {
       if (t.text === text) {
@@ -126,7 +153,7 @@ function toggleTask(doc, text) {
   return false;
 }
 
-function moveTask(doc, text, toPriority) {
+export function moveTask(doc: FixPlanDoc, text: string, toPriority: string): boolean {
   for (const name of doc.sectionOrder) {
     const idx = doc.sections[name].findIndex((t) => t.text === text);
     if (idx >= 0) {
@@ -138,13 +165,13 @@ function moveTask(doc, text, toPriority) {
   return false;
 }
 
-function toBoard(doc) {
-  const cols = { upNext: [], inProgress: [], backlog: [], done: [], blocked: [] };
+export function toBoard(doc: FixPlanDoc): BoardView {
+  const cols: BoardView = { upNext: [], inProgress: [], backlog: [], done: [], blocked: [] };
   const isBlocked = !!doc.statusLine && /blocked/i.test(doc.statusLine);
 
   for (const name of doc.sectionOrder) {
     for (const t of doc.sections[name]) {
-      const card = { text: t.text, priority: name, done: t.done };
+      const card: BoardCard = { text: t.text, priority: name, done: t.done };
       if (t.done || /completed/i.test(name)) {
         cols.done.push(card);
       } else if (/high/i.test(name)) {
@@ -156,27 +183,16 @@ function toBoard(doc) {
   }
 
   if (cols.upNext.length > 0) {
-    cols.inProgress.push(cols.upNext.shift());
+    cols.inProgress.push(cols.upNext.shift()!);
   }
 
-  if (isBlocked) {
+  if (isBlocked && doc.statusLine) {
     cols.blocked.push({ text: doc.statusLine, priority: 'Status', done: false });
   }
 
   return cols;
 }
 
-function trimTrailingEmpty(arr) {
+function trimTrailingEmpty(arr: string[]): void {
   while (arr.length > 0 && arr[arr.length - 1].trim() === '') arr.pop();
 }
-
-module.exports = {
-  PRIORITY_ORDER,
-  parse,
-  serialize,
-  addTask,
-  toggleTask,
-  moveTask,
-  toBoard,
-  ensureSection,
-};

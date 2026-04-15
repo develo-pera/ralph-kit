@@ -1,13 +1,22 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const fs = require('fs');
-const path = require('path');
+import * as fixPlanParser from './fix_plan_parser';
+import * as backlogParser from './backlog_parser';
+import { atomicWrite, backup } from './writers';
 
-const fixPlanParser = require('./fix_plan_parser');
-const backlogParser = require('./backlog_parser');
-const { atomicWrite, backup } = require('./writers');
+export interface PairPaths {
+  fixPlan: string;
+  backlog: string;
+}
 
-function paths(cwd) {
+export interface LoadedPair {
+  fixPlanDoc: fixPlanParser.FixPlanDoc;
+  backlogDoc: backlogParser.BacklogDoc;
+  paths: PairPaths;
+}
+
+export function paths(cwd: string): PairPaths {
   const dir = path.join(cwd, '.ralph');
   return {
     fixPlan: path.join(dir, 'fix_plan.md'),
@@ -15,7 +24,7 @@ function paths(cwd) {
   };
 }
 
-function loadPair(cwd) {
+export function loadPair(cwd: string): LoadedPair {
   const { fixPlan, backlog } = paths(cwd);
   const fpText = fs.existsSync(fixPlan) ? fs.readFileSync(fixPlan, 'utf8') : '';
   const bkText = fs.existsSync(backlog) ? fs.readFileSync(backlog, 'utf8') : backlogParser.defaultContent();
@@ -26,7 +35,11 @@ function loadPair(cwd) {
   };
 }
 
-function writePair(cwd, fixPlanDoc, backlogDoc) {
+export function writePair(
+  cwd: string,
+  fixPlanDoc: fixPlanParser.FixPlanDoc,
+  backlogDoc: backlogParser.BacklogDoc,
+): void {
   const { fixPlan, backlog } = paths(cwd);
   const fpBackup = backup(fixPlan);
   const bkBackup = backup(backlog);
@@ -40,7 +53,7 @@ function writePair(cwd, fixPlanDoc, backlogDoc) {
   }
 }
 
-function promoteToTodo(cwd, text) {
+export function promoteToTodo(cwd: string, text: string): { ok: true } {
   const { fixPlanDoc, backlogDoc } = loadPair(cwd);
   const removed = backlogParser.removeTask(backlogDoc, text);
   if (!removed) throw new Error(`Task not found in backlog: ${text}`);
@@ -49,7 +62,7 @@ function promoteToTodo(cwd, text) {
   return { ok: true };
 }
 
-function demoteToBacklog(cwd, text) {
+export function demoteToBacklog(cwd: string, text: string): { ok: true } {
   const { fixPlanDoc, backlogDoc } = loadPair(cwd);
   let found = false;
   for (const section of Object.keys(fixPlanDoc.sections)) {
@@ -65,5 +78,3 @@ function demoteToBacklog(cwd, text) {
   writePair(cwd, fixPlanDoc, backlogDoc);
   return { ok: true };
 }
-
-module.exports = { promoteToTodo, demoteToBacklog, loadPair, writePair, paths };

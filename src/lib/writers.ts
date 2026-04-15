@@ -1,10 +1,8 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-
-function atomicWrite(filePath, content) {
+export function atomicWrite(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
   const tmp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
@@ -12,7 +10,7 @@ function atomicWrite(filePath, content) {
   fs.renameSync(tmp, filePath);
 }
 
-function backup(filePath) {
+export function backup(filePath: string): string | null {
   if (!fs.existsSync(filePath)) return null;
   const bakDir = path.join(os.tmpdir(), 'ralph-kit-backups');
   fs.mkdirSync(bakDir, { recursive: true });
@@ -22,11 +20,11 @@ function backup(filePath) {
   return target;
 }
 
-function diffPreview(oldText, newText) {
+export function diffPreview(oldText: string | null | undefined, newText: string | null | undefined): string {
   const oldLines = (oldText || '').split('\n');
   const newLines = (newText || '').split('\n');
   const max = Math.max(oldLines.length, newLines.length);
-  const out = [];
+  const out: string[] = [];
   for (let i = 0; i < max; i++) {
     const a = oldLines[i];
     const b = newLines[i];
@@ -36,5 +34,3 @@ function diffPreview(oldText, newText) {
   }
   return out.join('\n');
 }
-
-module.exports = { atomicWrite, backup, diffPreview };

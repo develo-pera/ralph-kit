@@ -1,28 +1,28 @@
 #!/usr/bin/env node
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { Command } from 'commander';
+import chalk from 'chalk';
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { Command } = require('commander');
-const chalk = require('chalk');
-
-const doctor = require('../lib/doctor');
+import * as doctor from '../lib/doctor';
+import { start } from '../server';
+import pkg from '../../package.json';
 
 const program = new Command();
 program
   .name('ralph-kit')
   .description('Questionnaire + Kanban dashboard for Ralph Loop projects')
-  .version(require('../package.json').version);
+  .version(pkg.version);
 
-function missingRalphError(cwd) {
+function missingRalphError(cwd: string): void {
   console.error(chalk.red(`No .ralph/ directory found in ${cwd}.`));
   console.error('');
-  console.error('Either (a) run your Ralph implementation\'s setup:');
+  console.error("Either (a) run your Ralph implementation's setup:");
   console.error(chalk.gray('      ralph enable              # frankbria/ralph-claude-code'));
   console.error(chalk.gray('      # other implementations: see their docs'));
   console.error('');
-  console.error('or (b) run ralph-kit\'s implementation-agnostic bootstrap:');
+  console.error("or (b) run ralph-kit's implementation-agnostic bootstrap:");
   console.error(chalk.gray('      ralph-kit init'));
 }
 
@@ -31,8 +31,7 @@ program
   .description('Start the local Kanban dashboard')
   .option('-p, --port <port>', 'port to listen on', '4777')
   .option('-d, --dir <dir>', 'project dir (must contain .ralph/)', process.cwd())
-  .action(async function boardAction(opts) {
-    const { start } = require('../server');
+  .action(async function boardAction(this: Command, opts: { port: string; dir: string }) {
     const cwd = path.resolve(opts.dir);
     if (!fs.existsSync(path.join(cwd, '.ralph'))) {
       missingRalphError(cwd);
@@ -45,7 +44,8 @@ program
     try {
       result = await start({ port: requested, cwd, strictPort });
     } catch (err) {
-      if (err && err.code === 'EADDRINUSE') {
+      const e = err as NodeJS.ErrnoException;
+      if (e && e.code === 'EADDRINUSE') {
         console.error(
           chalk.red(
             strictPort
@@ -75,7 +75,7 @@ program
   .command('init')
   .description('Scaffold a neutral .ralph/ layout (implementation-agnostic)')
   .option('-d, --dir <dir>', 'project dir', process.cwd())
-  .action((opts) => {
+  .action((opts: { dir: string }) => {
     const cwd = path.resolve(opts.dir);
     const created = doctor.scaffold(cwd);
     if (created.length === 0) {
@@ -95,7 +95,7 @@ program
   .command('doctor')
   .description('Validate .ralph/ layout')
   .option('-d, --dir <dir>', 'project dir', process.cwd())
-  .action((opts) => {
+  .action((opts: { dir: string }) => {
     const cwd = path.resolve(opts.dir);
     const r = doctor.inspect(cwd);
     console.log(chalk.bold(`Checking ${path.join(cwd, '.ralph')}`));
@@ -104,8 +104,10 @@ program
       missingRalphError(cwd);
       process.exit(1);
     }
-    for (const [k, v] of Object.entries(r.files)) {
-      console.log((v ? chalk.green('  ✓ ') : chalk.yellow('  ~ ')) + k);
+    if (r.files) {
+      for (const [k, v] of Object.entries(r.files)) {
+        console.log((v ? chalk.green('  ✓ ') : chalk.yellow('  ~ ')) + k);
+      }
     }
     console.log('');
     const label = r.state === 'initialized' ? chalk.green('initialized') : chalk.yellow(r.state);
@@ -121,8 +123,8 @@ program
   .command('install-commands')
   .description('Copy slash commands into ~/.claude/commands/ralph-kit/')
   .option('--force', 'overwrite existing commands')
-  .action((opts) => {
-    const src = path.join(__dirname, '..', 'commands');
+  .action((opts: { force?: boolean }) => {
+    const src = path.join(__dirname, '..', '..', 'commands');
     const dst = path.join(os.homedir(), '.claude', 'commands', 'ralph-kit');
     const legacyDst = path.join(os.homedir(), '.claude', 'commands');
     fs.mkdirSync(dst, { recursive: true });
@@ -149,4 +151,4 @@ program
     );
   });
 
-program.parseAsync(process.argv);
+void program.parseAsync(process.argv);

@@ -1,18 +1,40 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const fs = require('fs');
-const path = require('path');
+import { promptTemplate, fixPlanTemplate, agentTemplate } from './templates';
+import { defaultContent as backlogDefaultContent } from './backlog_parser';
 
 const DEFAULT_PROMPT_MARKERS = [
   'Project Type:** unknown',
   'Follow tasks in fix_plan.md',
-];
+] as const;
 
-function ralphDir(cwd) {
+export type DoctorState = 'missing' | 'uninitialized' | 'initialized';
+
+export interface DoctorReport {
+  state: DoctorState;
+  cwd: string;
+  reasons: string[];
+  files?: {
+    prompt: boolean;
+    fixPlan: boolean;
+    agent: boolean;
+    backlog: boolean;
+    specsDir: boolean;
+    ralphrc: boolean;
+  };
+  flags?: {
+    promptCustomized: boolean;
+    fixPlanReady: boolean;
+    hasSpecs: boolean;
+  };
+}
+
+export function ralphDir(cwd: string): string {
   return path.join(cwd, '.ralph');
 }
 
-function inspect(cwd) {
+export function inspect(cwd: string): DoctorReport {
   const dir = ralphDir(cwd);
   if (!fs.existsSync(dir)) {
     return { state: 'missing', cwd, reasons: ['.ralph/ directory not found'] };
@@ -25,7 +47,7 @@ function inspect(cwd) {
   const backlogPath = path.join(dir, 'backlog.md');
   const rcPath = path.join(cwd, '.ralphrc');
 
-  const reasons = [];
+  const reasons: string[] = [];
   let promptCustomized = false;
   if (fs.existsSync(promptPath)) {
     const txt = fs.readFileSync(promptPath, 'utf8');
@@ -67,11 +89,11 @@ function inspect(cwd) {
   };
 }
 
-function scaffold(cwd) {
+export function scaffold(cwd: string): string[] {
   const dir = ralphDir(cwd);
   fs.mkdirSync(path.join(dir, 'specs'), { recursive: true });
 
-  const writeIfMissing = (p, content) => {
+  const writeIfMissing = (p: string, content: string): boolean => {
     if (!fs.existsSync(p)) {
       fs.writeFileSync(p, content);
       return true;
@@ -79,21 +101,19 @@ function scaffold(cwd) {
     return false;
   };
 
-  const created = [];
-  if (writeIfMissing(path.join(dir, 'PROMPT.md'), require('./templates').promptTemplate())) created.push('PROMPT.md');
-  if (writeIfMissing(path.join(dir, 'fix_plan.md'), require('./templates').fixPlanTemplate())) created.push('fix_plan.md');
-  if (writeIfMissing(path.join(dir, 'AGENT.md'), require('./templates').agentTemplate())) created.push('AGENT.md');
-  if (writeIfMissing(path.join(dir, 'backlog.md'), require('./backlog_parser').defaultContent())) created.push('backlog.md');
+  const created: string[] = [];
+  if (writeIfMissing(path.join(dir, 'PROMPT.md'), promptTemplate())) created.push('PROMPT.md');
+  if (writeIfMissing(path.join(dir, 'fix_plan.md'), fixPlanTemplate())) created.push('fix_plan.md');
+  if (writeIfMissing(path.join(dir, 'AGENT.md'), agentTemplate())) created.push('AGENT.md');
+  if (writeIfMissing(path.join(dir, 'backlog.md'), backlogDefaultContent())) created.push('backlog.md');
   return created;
 }
 
-function ensureBacklog(cwd) {
+export function ensureBacklog(cwd: string): boolean {
   const p = path.join(ralphDir(cwd), 'backlog.md');
   if (!fs.existsSync(p)) {
-    fs.writeFileSync(p, require('./backlog_parser').defaultContent());
+    fs.writeFileSync(p, backlogDefaultContent());
     return true;
   }
   return false;
 }
-
-module.exports = { inspect, scaffold, ensureBacklog, ralphDir };
