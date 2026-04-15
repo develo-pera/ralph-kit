@@ -36,7 +36,7 @@ ralph-kit board      # → http://localhost:4777
 /ralph-kit:revise           # dialog-edit any control file
 ```
 
-Ralph-kit is implementation-agnostic. It works with any Ralph Loop variant that uses the `.ralph/` + `PROMPT.md` + `fix_plan.md` convention (frankbria/ralph-claude-code, snarktank/ralph, etc.). `ralph-kit init` scaffolds the layout without depending on any specific Ralph CLI being installed.
+Ralph-kit is implementation-agnostic. It works with any Ralph Loop variant that uses the `.ralph/` + `PROMPT.md` + `fix_plan.md` convention ([frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code), [snarktank/ralph](https://github.com/snarktank/ralph), etc.). `ralph-kit init` scaffolds the layout without depending on any specific Ralph CLI being installed.
 
 ## Commands
 
