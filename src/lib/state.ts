@@ -7,8 +7,15 @@ export interface ProgressJson {
   [key: string]: unknown;
 }
 
+export interface StatusJson {
+  loop_count?: number;
+  status?: string;
+  last_action?: string;
+  [key: string]: unknown;
+}
+
 export interface Snapshot {
-  status: unknown;
+  status: StatusJson | null;
   progress: ProgressJson | null;
   breakerOpen: boolean;
   liveTail: string[];
@@ -37,7 +44,7 @@ export function readText(file: string): string | null {
 
 export function snapshot(cwd: string): Snapshot {
   const dir = ralphDir(cwd);
-  const status = readJSON(path.join(dir, 'status.json'));
+  const status = readJSON<StatusJson>(path.join(dir, 'status.json'));
   const progress = readJSON<ProgressJson>(path.join(dir, 'progress.json'));
   const cbRaw = readText(path.join(dir, '.circuit_breaker_state')) || '';
   const breakerOpen =
