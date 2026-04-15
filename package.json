@@ -9,13 +9,15 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "vitest run",
-    "board": "node bin/ralph-kit.js board"
+    "board": "node bin/ralph-kit.js board",
+    "build": "vite build --config web/vite.config.ts",
+    "prepublishOnly": "npm run build"
   },
   "files": [
     "bin",
     "lib",
     "server",
-    "web",
+    "web/dist",
     "commands",
     "README.md"
   ],
@@ -24,9 +26,17 @@
     "chokidar": "^3.6.0",
     "commander": "^12.1.0",
     "express": "^4.19.2",
-    "prompts": "^2.4.2"
+    "prompts": "^2.4.2",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.1",
+    "typescript": "^6.0.2",
+    "vite": "^5.4.21",
     "vitest": "^1.6.0"
   },
   "engines": {

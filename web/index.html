@@ -4,76 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Ralph Kit — Kanban</title>
-    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
-      <h1>Ralph&nbsp;Kit</h1>
-      <div class="meta">
-        <span id="title">—</span>
-        <span id="loop">loop —</span>
-        <span id="status-pill" class="pill">idle</span>
-        <button id="add-btn" class="hidden">+ Add task</button>
-      </div>
-    </header>
-
-    <div id="toast" class="toast hidden"></div>
-
-    <main id="board">
-      <section class="col" data-col="backlog"><h2>Backlog</h2><ul></ul></section>
-      <section class="col" data-col="todo"><h2>To Do</h2><ul></ul></section>
-      <section class="col" data-col="inProgress"><h2>In Progress</h2><ul></ul></section>
-      <section class="col" data-col="blocked"><h2>Blocked</h2><ul></ul></section>
-      <section class="col" data-col="done"><h2>Done</h2><ul></ul></section>
-
-      <div id="blocking-card" class="blocking-card hidden">
-        <h2>Project not defined yet</h2>
-        <p>Run <code>/ralph-kit:define</code> in Claude Code to create <code>PROMPT.md</code>, specs, and the initial backlog.</p>
-        <p class="reasons" id="block-reasons"></p>
-        <div class="actions">
-          <button id="copy-define">Copy <code>/ralph-kit:define</code></button>
-          <a class="btn-secondary" href="https://github.com/develo-pera/ralph-kit#usage" target="_blank" rel="noopener">Open docs</a>
-        </div>
-      </div>
-    </main>
-
-    <div id="log-panel" class="log-panel collapsed">
-      <button class="log-bar" id="log-bar" type="button">
-        <span class="chevron">▸</span>
-        <span class="log-title">Ralph live log</span>
-        <span class="log-preview" id="log-preview">(no output yet)</span>
-      </button>
-      <div class="log-body" id="log-body">
-        <div class="log-header">
-          <span class="log-title">Ralph live log</span>
-          <div class="log-actions">
-            <button id="log-clear" title="Clear display (file not modified)">Clear</button>
-            <button id="log-pause" title="Pause auto-scroll">Pause scroll</button>
-            <button id="log-collapse" title="Collapse (or press &#96;)">×</button>
-          </div>
-        </div>
-        <pre id="live"></pre>
-      </div>
-    </div>
-
-    <dialog id="add-dialog">
-      <form method="dialog" id="add-form">
-        <h3>New task</h3>
-        <label>Text<input name="text" required autocomplete="off" /></label>
-        <label>Destination
-          <select name="destination">
-            <option value="backlog">Backlog (default)</option>
-            <option value="todo">To Do (High Priority)</option>
-            <option value="blocked">Blocked</option>
-          </select>
-        </label>
-        <menu>
-          <button value="cancel" formnovalidate>Cancel</button>
-          <button id="add-submit" value="add">Add</button>
-        </menu>
-      </form>
-    </dialog>
-
-    <script src="board.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

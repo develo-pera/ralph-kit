@@ -8,7 +8,7 @@ function start({ port = 4777, cwd = process.cwd() } = {}) {
   const app = express();
   app.use(express.json());
   app.use('/api', createRouter(cwd));
-  app.use('/', express.static(path.join(__dirname, '..', 'web')));
+  app.use('/', express.static(path.join(__dirname, '..', 'web', 'dist')));
 
   return new Promise((resolve, reject) => {
     const server = app.listen(port, '127.0.0.1', () => {
