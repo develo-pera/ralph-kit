@@ -1,0 +1,4 @@
+{
+  "state": "OPEN",
+  "reason": "Permission denied — add Bash(npx *) to ALLOWED_TOOLS"
+}
