@@ -6,7 +6,7 @@ import { defaultContent as backlogDefaultContent } from './backlog_parser';
 
 const DEFAULT_PROMPT_MARKERS = [
   'Project Type:** unknown',
-  'Follow tasks in fix_plan.md',
+  'Review the codebase and understand the current state',
 ] as const;
 
 export type DoctorState = 'missing' | 'uninitialized' | 'initialized';
@@ -52,6 +52,7 @@ export function inspect(cwd: string): DoctorReport {
   if (fs.existsSync(promptPath)) {
     const txt = fs.readFileSync(promptPath, 'utf8');
     promptCustomized = !DEFAULT_PROMPT_MARKERS.some((m) => txt.includes(m));
+    if (!promptCustomized) reasons.push('PROMPT.md still matches the default template');
   } else {
     reasons.push('PROMPT.md missing');
   }
