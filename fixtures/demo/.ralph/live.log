@@ -1,0 +1,23 @@
+[loop 10] starting: Exit 1 when not inside a git repo
+[loop 10] edit bin/git-summary.js (+7 -1)
+[loop 10] run: npm test
+[loop 10] PASS  tests/cli.test.js  (4 tests)
+[loop 10] commit a91f2b7: exit non-zero when cwd is not a git repo
+[loop 10] done in 3.2s
+
+[loop 11] starting: Wire vitest and add first smoke test
+[loop 11] edit package.json (+2 -0)
+[loop 11] add tests/cli.test.js
+[loop 11] run: npm test
+[loop 11] PASS  tests/cli.test.js  (5 tests)
+[loop 11] commit 4d87e1c: add vitest smoke test for --days default
+[loop 11] done in 4.8s
+
+[loop 12] starting: Implement --author filter end-to-end
+[loop 12] read specs/cli.md
+[loop 12] edit lib/parse.js (+14 -2)
+[loop 12] edit bin/git-summary.js (+5 -1)
+[loop 12] run: npm test
+[loop 12] FAIL  tests/cli.test.js  (1 of 6 tests)
+[loop 12]   × filters commits by --author email
+[loop 12] retrying with narrower change

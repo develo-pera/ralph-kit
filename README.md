@@ -33,8 +33,8 @@ npx ralph-kit board
 ## Usage
 
 ```bash
-# 1. If you don't already have a .ralph/ — scaffold a neutral layout
-ralph-kit init
+# 1. Point ralph-kit at your existing Ralph Loop project (first step for most users)
+ralph-kit map        # scans the project, writes .ralph-kit/profile.json
 
 # 2. Start the Kanban dashboard
 ralph-kit board      # → http://localhost:4777
@@ -49,7 +49,9 @@ ralph-kit board      # → http://localhost:4777
 /ralph-kit:revise           # dialog-edit any control file
 ```
 
-Ralph-kit is implementation-agnostic. It works with any Ralph Loop variant that uses the `.ralph/` + `PROMPT.md` + `fix_plan.md` convention ([frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code), [snarktank/ralph](https://github.com/snarktank/ralph), etc.). `ralph-kit init` scaffolds the layout without depending on any specific Ralph CLI being installed.
+Starting fresh (no Ralph Loop implementation installed yet)? Use `ralph-kit init` to scaffold a minimal neutral layout instead of `ralph-kit map`.
+
+Ralph-kit is **implementation-agnostic**. It works with any Ralph Loop variant — e.g. [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code) (uses `.ralph/`), [snarktank/ralph](https://github.com/snarktank/ralph) (uses `ralph/`), or a custom setup. `ralph-kit map` detects the directory name, loop state files, circuit-breaker location, and section naming on its own and writes a `.ralph-kit/profile.json` that drives everything else. Edit it by hand if anything was misdetected.
 
 ## Commands
 
@@ -65,9 +67,11 @@ All slash commands are namespaced under `ralph-kit:` so it's always clear which 
 
 | CLI command | What it does |
 |---|---|
-| `ralph-kit init` | Scaffold a neutral `.ralph/` layout (implementation-agnostic). |
-| `ralph-kit board` | Local web Kanban on `:4777`. Reads `./​.ralph/` in cwd. Auto-creates `backlog.md` if missing. |
-| `ralph-kit doctor` | Validate `.ralph/` layout; returns `missing` / `uninitialized` / `initialized`. |
+| `ralph-kit map` | Introspect the project, detect which Ralph Loop flavor it uses, and write `.ralph-kit/profile.json`. Recommended first command in any existing Ralph project. Pass `--dry-run` to preview, `--force` to overwrite. |
+| `ralph-kit profile show` | Print the active profile (persisted or auto-detected). |
+| `ralph-kit init` | Scaffold a neutral `.ralph/` layout (for projects that don't yet have a Ralph Loop set up). |
+| `ralph-kit board` | Local web Kanban on `:4777`. Reads the Ralph directory named in the profile (default `.ralph/`). Auto-creates `backlog.md` if missing. |
+| `ralph-kit doctor` | Validate the Ralph directory layout; returns `missing` / `uninitialized` / `initialized`. |
 | `ralph-kit install-commands` | Copies slash commands into `~/.claude/commands/ralph-kit/`. |
 
 ## Board columns

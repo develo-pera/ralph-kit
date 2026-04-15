@@ -70,8 +70,10 @@ npm run board   # runs tsx against fixtures/demo by default
 ```
 ralph-kit/
 ├── src/                    # Backend TypeScript sources
-│   ├── bin/ralph-kit.ts    # CLI entry
-│   ├── lib/                # Parsers, state, doctor, promote, writers
+│   ├── bin/ralph-kit.ts    # CLI entry — `map`, `init`, `board`, `doctor`, `profile`
+│   ├── lib/                # Parsers, state, doctor, promote, writers, probe, profile
+│   │   ├── probe.ts        # Pure introspection of a project's Ralph directory
+│   │   ├── profile.ts      # Profile schema + generator + load/write
 │   │   └── *.test.ts       # Vitest suite (runs against TS directly)
 │   └── server/             # Express + routes
 ├── web/                    # Frontend (Vite + React + TypeScript)
@@ -82,6 +84,7 @@ ralph-kit/
 │   └── vite.config.ts
 ├── commands/               # Slash-command markdown for Claude Code
 ├── fixtures/demo/          # Dev fixture for npm run dev
+├── fixtures/profiles/      # Fixtures for probe/generator tests (one per Ralph shape)
 ├── dist/                   # Compiled backend (gitignored, shipped via files[])
 └── web/dist/               # Built frontend bundle (gitignored, shipped)
 ```

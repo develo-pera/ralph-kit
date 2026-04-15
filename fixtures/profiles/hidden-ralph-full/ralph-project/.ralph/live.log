@@ -1,0 +1,3 @@
+[loop 3] starting
+[loop 3] edit src/foo.ts
+[loop 3] halted: permission denied

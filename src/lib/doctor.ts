@@ -3,8 +3,10 @@ import path from 'node:path';
 
 import { promptTemplate, fixPlanTemplate, agentTemplate } from './templates';
 import { defaultContent as backlogDefaultContent } from './backlog_parser';
+import type { Profile } from './profile';
+import { defaultProfile } from './profile';
 
-const DEFAULT_PROMPT_MARKERS = [
+const BUILTIN_PROMPT_MARKERS = [
   'Project Type:** unknown',
   'Review the codebase and understand the current state',
 ] as const;
@@ -30,14 +32,14 @@ export interface DoctorReport {
   };
 }
 
-export function ralphDir(cwd: string): string {
-  return path.join(cwd, '.ralph');
+export function ralphDir(cwd: string, profile: Profile = defaultProfile()): string {
+  return path.join(cwd, profile.root);
 }
 
-export function inspect(cwd: string): DoctorReport {
-  const dir = ralphDir(cwd);
+export function inspect(cwd: string, profile: Profile = defaultProfile()): DoctorReport {
+  const dir = ralphDir(cwd, profile);
   if (!fs.existsSync(dir)) {
-    return { state: 'missing', cwd, reasons: ['.ralph/ directory not found'] };
+    return { state: 'missing', cwd, reasons: [`${profile.root}/ directory not found`] };
   }
 
   const promptPath = path.join(dir, 'PROMPT.md');
@@ -47,11 +49,13 @@ export function inspect(cwd: string): DoctorReport {
   const backlogPath = path.join(dir, 'backlog.md');
   const rcPath = path.join(cwd, '.ralphrc');
 
+  const markers = profile.promptTemplateMarkers ?? BUILTIN_PROMPT_MARKERS;
+
   const reasons: string[] = [];
   let promptCustomized = false;
   if (fs.existsSync(promptPath)) {
     const txt = fs.readFileSync(promptPath, 'utf8');
-    promptCustomized = !DEFAULT_PROMPT_MARKERS.some((m) => txt.includes(m));
+    promptCustomized = markers.length === 0 || !markers.some((m) => txt.includes(m));
     if (!promptCustomized) reasons.push('PROMPT.md still matches the default template');
   } else {
     reasons.push('PROMPT.md missing');
@@ -90,8 +94,8 @@ export function inspect(cwd: string): DoctorReport {
   };
 }
 
-export function scaffold(cwd: string): string[] {
-  const dir = ralphDir(cwd);
+export function scaffold(cwd: string, profile: Profile = defaultProfile()): string[] {
+  const dir = ralphDir(cwd, profile);
   fs.mkdirSync(path.join(dir, 'specs'), { recursive: true });
 
   const writeIfMissing = (p: string, content: string): boolean => {
@@ -110,8 +114,8 @@ export function scaffold(cwd: string): string[] {
   return created;
 }
 
-export function ensureBacklog(cwd: string): boolean {
-  const p = path.join(ralphDir(cwd), 'backlog.md');
+export function ensureBacklog(cwd: string, profile: Profile = defaultProfile()): boolean {
+  const p = path.join(ralphDir(cwd, profile), 'backlog.md');
   if (!fs.existsSync(p)) {
     fs.writeFileSync(p, backlogDefaultContent());
     return true;
