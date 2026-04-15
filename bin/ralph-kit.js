@@ -7,11 +7,24 @@ const os = require('os');
 const { Command } = require('commander');
 const chalk = require('chalk');
 
+const doctor = require('../lib/doctor');
+
 const program = new Command();
 program
   .name('ralph-kit')
   .description('Questionnaire + Kanban dashboard for Ralph Loop projects')
   .version(require('../package.json').version);
+
+function missingRalphError(cwd) {
+  console.error(chalk.red(`No .ralph/ directory found in ${cwd}.`));
+  console.error('');
+  console.error('Either (a) run your Ralph implementation\'s setup:');
+  console.error(chalk.gray('      ralph enable              # frankbria/ralph-claude-code'));
+  console.error(chalk.gray('      # other implementations: see their docs'));
+  console.error('');
+  console.error('or (b) run ralph-kit\'s implementation-agnostic bootstrap:');
+  console.error(chalk.gray('      ralph-kit init'));
+}
 
 program
   .command('board')
@@ -21,14 +34,40 @@ program
   .action(async (opts) => {
     const { start } = require('../server');
     const cwd = path.resolve(opts.dir);
-    const ralph = path.join(cwd, '.ralph');
-    if (!fs.existsSync(ralph)) {
-      console.error(chalk.red(`No .ralph/ in ${cwd}. Run 'ralph enable' first.`));
+    if (!fs.existsSync(path.join(cwd, '.ralph'))) {
+      missingRalphError(cwd);
       process.exit(1);
     }
+    doctor.ensureBacklog(cwd);
     const { port } = await start({ port: Number(opts.port), cwd });
+    const health = doctor.inspect(cwd);
     console.log(chalk.green(`ralph-kit board  →  http://localhost:${port}`));
-    console.log(chalk.gray(`watching ${ralph}`));
+    console.log(chalk.gray(`watching ${path.join(cwd, '.ralph')}`));
+    if (health.state !== 'initialized') {
+      console.log(
+        chalk.yellow(`  project is ${health.state} — UI is gated; run /ralph-kit:define in Claude Code`),
+      );
+    }
+  });
+
+program
+  .command('init')
+  .description('Scaffold a neutral .ralph/ layout (implementation-agnostic)')
+  .option('-d, --dir <dir>', 'project dir', process.cwd())
+  .action((opts) => {
+    const cwd = path.resolve(opts.dir);
+    const created = doctor.scaffold(cwd);
+    if (created.length === 0) {
+      console.log(chalk.gray('.ralph/ already scaffolded — nothing to do'));
+    } else {
+      for (const f of created) console.log(chalk.green(`  ✓ created .ralph/${f}`));
+    }
+    console.log('');
+    console.log(chalk.yellow('Next steps:'));
+    console.log('  1. Install your Ralph Loop implementation of choice');
+    console.log('     e.g.  npm i -g github:frankbria/ralph-claude-code  (and run `ralph enable`)');
+    console.log('  2. In Claude Code, run  /ralph-kit:define  to define the project');
+    console.log('  3. Start the dashboard:  ralph-kit board');
   });
 
 program
@@ -37,40 +76,29 @@ program
   .option('-d, --dir <dir>', 'project dir', process.cwd())
   .action((opts) => {
     const cwd = path.resolve(opts.dir);
-    const ralph = path.join(cwd, '.ralph');
-    const required = ['PROMPT.md', 'fix_plan.md', 'AGENT.md'];
-    const optional = ['specs'];
-    let ok = true;
-    console.log(chalk.bold(`Checking ${ralph}`));
-    if (!fs.existsSync(ralph)) {
-      console.log(chalk.red('  ✗ .ralph/ missing — not a Ralph project'));
+    const r = doctor.inspect(cwd);
+    console.log(chalk.bold(`Checking ${path.join(cwd, '.ralph')}`));
+    if (r.state === 'missing') {
+      console.log(chalk.red('  ✗ .ralph/ missing'));
+      missingRalphError(cwd);
       process.exit(1);
     }
-    for (const f of required) {
-      const p = path.join(ralph, f);
-      if (fs.existsSync(p)) console.log(chalk.green(`  ✓ ${f}`));
-      else {
-        console.log(chalk.red(`  ✗ ${f} missing`));
-        ok = false;
-      }
+    for (const [k, v] of Object.entries(r.files)) {
+      console.log((v ? chalk.green('  ✓ ') : chalk.yellow('  ~ ')) + k);
     }
-    for (const f of optional) {
-      const p = path.join(ralph, f);
-      console.log((fs.existsSync(p) ? chalk.green('  ✓ ') : chalk.yellow('  ~ ')) + f + ' (optional)');
+    console.log('');
+    const label = r.state === 'initialized' ? chalk.green('initialized') : chalk.yellow(r.state);
+    console.log(`  state: ${label}`);
+    if (r.reasons.length > 0) {
+      for (const reason of r.reasons) console.log(chalk.gray(`    · ${reason}`));
+      console.log(chalk.yellow('\n  → run /ralph-kit:define in Claude Code to resolve'));
     }
-    const fixPlan = path.join(ralph, 'fix_plan.md');
-    if (fs.existsSync(fixPlan)) {
-      const txt = fs.readFileSync(fixPlan, 'utf8');
-      if (/Status:\s*BLOCKED/i.test(txt)) {
-        console.log(chalk.yellow('  ! fix_plan.md is BLOCKED — run /ralph-kit:define in Claude Code'));
-      }
-    }
-    process.exit(ok ? 0 : 1);
+    process.exit(r.state === 'initialized' ? 0 : 2);
   });
 
 program
   .command('install-commands')
-  .description('Copy slash commands into ~/.claude/commands/')
+  .description('Copy slash commands into ~/.claude/commands/ralph-kit/')
   .option('--force', 'overwrite existing commands')
   .action((opts) => {
     const src = path.join(__dirname, '..', 'commands');
@@ -95,7 +123,9 @@ program
         console.log(chalk.gray(`  - removed legacy ${f}`));
       }
     }
-    console.log(chalk.gray(`\nSlash commands available: ${files.map((f) => '/ralph-kit:' + f.replace('.md', '')).join(', ')}`));
+    console.log(
+      chalk.gray(`\nSlash commands available: ${files.map((f) => '/ralph-kit:' + f.replace('.md', '')).join(', ')}`),
+    );
   });
 
 program.parseAsync(process.argv);
