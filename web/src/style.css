@@ -19,6 +19,10 @@ body {
   background: var(--bg);
   color: var(--text);
   height: 100vh;
+}
+
+#root {
+  height: 100%;
   display: grid;
   grid-template-rows: auto 1fr auto;
 }
