@@ -6,16 +6,29 @@ Stop hand-writing markdown. Run an interview in Claude Code chat, get your `PROM
 
 ## Install
 
+**Try it with no install (recommended):**
+
+```bash
+npx github:develo-pera/ralph-kit board
+```
+
+Always runs the latest commit from `main`. Nothing is added to your project.
+
+**Install globally** (if you use ralph-kit across many projects):
+
 ```bash
 npm install -g github:develo-pera/ralph-kit
 ralph-kit install-commands   # one-time: drops slash commands into ~/.claude/commands/ralph-kit/
 ```
 
-Ephemeral, no global install:
+**Install per-project** (pins the version in `package.json`):
 
 ```bash
-npx github:develo-pera/ralph-kit board
+npm install --save-dev github:develo-pera/ralph-kit
+npx ralph-kit board
 ```
+
+> When ralph-kit is published to the npm registry, the URLs drop the `github:develo-pera/` prefix — e.g. `npx ralph-kit@latest board`.
 
 ## Usage
 
