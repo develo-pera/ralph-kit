@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 
 import * as doctor from '../lib/doctor';
+import { loadProfile } from '../lib/profile';
 import { start } from '../server';
 import pkg from '../../package.json';
 
@@ -15,8 +16,8 @@ program
   .description('Questionnaire + Kanban dashboard for Ralph Loop projects')
   .version(pkg.version);
 
-function missingRalphError(cwd: string): void {
-  console.error(chalk.red(`No .ralph/ directory found in ${cwd}.`));
+function missingRalphError(cwd: string, rootName: string): void {
+  console.error(chalk.red(`No ${rootName}/ directory found in ${cwd}.`));
   console.error('');
   console.error("Either (a) run your Ralph implementation's setup:");
   console.error(chalk.gray('      ralph enable              # frankbria/ralph-claude-code'));
@@ -30,14 +31,16 @@ program
   .command('board')
   .description('Start the local Kanban dashboard')
   .option('-p, --port <port>', 'port to listen on', '4777')
-  .option('-d, --dir <dir>', 'project dir (must contain .ralph/)', process.cwd())
+  .option('-d, --dir <dir>', 'project dir (must contain a Ralph directory)', process.cwd())
   .action(async function boardAction(this: Command, opts: { port: string; dir: string }) {
     const cwd = path.resolve(opts.dir);
-    if (!fs.existsSync(path.join(cwd, '.ralph'))) {
-      missingRalphError(cwd);
+    const profile = loadProfile(cwd);
+    const ralphRoot = path.join(cwd, profile.root);
+    if (!fs.existsSync(ralphRoot)) {
+      missingRalphError(cwd, profile.root);
       process.exit(1);
     }
-    doctor.ensureBacklog(cwd);
+    doctor.ensureBacklog(cwd, profile);
     const requested = Number(opts.port);
     const strictPort = this.getOptionValueSource('port') === 'cli';
     let result;
@@ -58,12 +61,12 @@ program
       throw err;
     }
     const { port } = result;
-    const health = doctor.inspect(cwd);
+    const health = doctor.inspect(cwd, profile);
     if (port !== requested) {
       console.log(chalk.yellow(`  port ${requested} in use — using ${port} instead`));
     }
     console.log(chalk.green(`ralph-kit board  →  http://localhost:${port}`));
-    console.log(chalk.gray(`watching ${path.join(cwd, '.ralph')}`));
+    console.log(chalk.gray(`watching ${ralphRoot}`));
     if (health.state !== 'initialized') {
       console.log(
         chalk.yellow(`  project is ${health.state} — UI is gated; run /ralph-kit:define in Claude Code`),
@@ -73,15 +76,16 @@ program
 
 program
   .command('init')
-  .description('Scaffold a neutral .ralph/ layout (implementation-agnostic)')
+  .description('Scaffold a neutral Ralph directory (implementation-agnostic)')
   .option('-d, --dir <dir>', 'project dir', process.cwd())
   .action((opts: { dir: string }) => {
     const cwd = path.resolve(opts.dir);
-    const created = doctor.scaffold(cwd);
+    const profile = loadProfile(cwd);
+    const created = doctor.scaffold(cwd, profile);
     if (created.length === 0) {
-      console.log(chalk.gray('.ralph/ already scaffolded — nothing to do'));
+      console.log(chalk.gray(`${profile.root}/ already scaffolded — nothing to do`));
     } else {
-      for (const f of created) console.log(chalk.green(`  ✓ created .ralph/${f}`));
+      for (const f of created) console.log(chalk.green(`  ✓ created ${profile.root}/${f}`));
     }
     console.log('');
     console.log(chalk.yellow('Next steps:'));
@@ -93,15 +97,16 @@ program
 
 program
   .command('doctor')
-  .description('Validate .ralph/ layout')
+  .description('Validate Ralph directory layout')
   .option('-d, --dir <dir>', 'project dir', process.cwd())
   .action((opts: { dir: string }) => {
     const cwd = path.resolve(opts.dir);
-    const r = doctor.inspect(cwd);
-    console.log(chalk.bold(`Checking ${path.join(cwd, '.ralph')}`));
+    const profile = loadProfile(cwd);
+    const r = doctor.inspect(cwd, profile);
+    console.log(chalk.bold(`Checking ${path.join(cwd, profile.root)}`));
     if (r.state === 'missing') {
-      console.log(chalk.red('  ✗ .ralph/ missing'));
-      missingRalphError(cwd);
+      console.log(chalk.red(`  ✗ ${profile.root}/ missing`));
+      missingRalphError(cwd, profile.root);
       process.exit(1);
     }
     if (r.files) {

@@ -9,6 +9,8 @@ import * as state from '../lib/state';
 import * as doctor from '../lib/doctor';
 import * as promote from '../lib/promote';
 import { atomicWrite, backup } from '../lib/writers';
+import type { Profile } from '../lib/profile';
+import { defaultProfile, loadProfile } from '../lib/profile';
 
 type ColumnId = 'backlog' | 'todo' | 'inProgress' | 'blocked' | 'done';
 
@@ -39,41 +41,57 @@ interface Board {
   meta: BoardMeta;
 }
 
-function fixPlanPath(cwd: string): string {
-  return path.join(state.ralphDir(cwd), 'fix_plan.md');
+function fixPlanPath(cwd: string, profile: Profile): string {
+  return path.join(state.ralphDir(cwd, profile), 'fix_plan.md');
 }
 
-function backlogPath(cwd: string): string {
-  return path.join(state.ralphDir(cwd), 'backlog.md');
+function backlogPath(cwd: string, profile: Profile): string {
+  return path.join(state.ralphDir(cwd, profile), 'backlog.md');
 }
 
-function loadFixPlan(cwd: string): fixPlanParser.FixPlanDoc | null {
-  const p = fixPlanPath(cwd);
+function loadFixPlan(cwd: string, profile: Profile): fixPlanParser.FixPlanDoc | null {
+  const p = fixPlanPath(cwd, profile);
   if (!fs.existsSync(p)) return null;
   return fixPlanParser.parse(fs.readFileSync(p, 'utf8'));
 }
 
-function loadBacklog(cwd: string): backlogParser.BacklogDoc {
-  const p = backlogPath(cwd);
+function loadBacklog(cwd: string, profile: Profile): backlogParser.BacklogDoc {
+  const p = backlogPath(cwd, profile);
   if (!fs.existsSync(p)) return backlogParser.parse(backlogParser.defaultContent());
   return backlogParser.parse(fs.readFileSync(p, 'utf8'));
 }
 
-function saveFixPlan(cwd: string, doc: fixPlanParser.FixPlanDoc): void {
-  const p = fixPlanPath(cwd);
+function saveFixPlan(cwd: string, doc: fixPlanParser.FixPlanDoc, profile: Profile): void {
+  const p = fixPlanPath(cwd, profile);
   backup(p);
   atomicWrite(p, fixPlanParser.serialize(doc));
 }
 
-function saveBacklog(cwd: string, doc: backlogParser.BacklogDoc): void {
-  const p = backlogPath(cwd);
+function saveBacklog(cwd: string, doc: backlogParser.BacklogDoc, profile: Profile): void {
+  const p = backlogPath(cwd, profile);
   backup(p);
   atomicWrite(p, backlogParser.serialize(doc));
 }
 
-export function buildBoard(cwd: string): Board {
-  const snap = state.snapshot(cwd);
-  const health = doctor.inspect(cwd);
+function nameMatchesAny(name: string, patterns: string[] | undefined, fallback: RegExp): boolean {
+  if (patterns && patterns.length > 0) {
+    return patterns.some((p) => name.toLowerCase() === p.toLowerCase());
+  }
+  return fallback.test(name);
+}
+
+function firstHighSection(profile: Profile): string {
+  return profile.fixPlan?.highSections?.[0] ?? 'High Priority';
+}
+
+function firstBlockedSection(profile: Profile): string {
+  return profile.fixPlan?.blockedSections?.[0] ?? 'Blocked';
+}
+
+export function buildBoard(cwd: string, profile: Profile = defaultProfile()): Board {
+  const snap = state.snapshot(cwd, profile);
+  const health = doctor.inspect(cwd, profile);
+  const { loopCount, loopStatus } = state.extractLoopState(snap, profile);
 
   const columns: Record<ColumnId, BoardCard[]> = {
     backlog: [],
@@ -82,12 +100,6 @@ export function buildBoard(cwd: string): Board {
     blocked: [],
     done: [],
   };
-  const pickNumber = (v: unknown): number | null => (typeof v === 'number' ? v : null);
-  const pickString = (v: unknown): string | null => (typeof v === 'string' ? v : null);
-  const loopCount =
-    pickNumber(snap.status?.loop_count) ?? pickNumber(snap.progress?.loop_count);
-  const loopStatus =
-    pickString(snap.status?.status) ?? pickString(snap.progress?.status);
 
   const meta: BoardMeta = {
     state: health.state,
@@ -103,8 +115,8 @@ export function buildBoard(cwd: string): Board {
     return { cwd, columns, meta, title: null, statusLine: null };
   }
 
-  const fpDoc = loadFixPlan(cwd);
-  const bkDoc = loadBacklog(cwd);
+  const fpDoc = loadFixPlan(cwd, profile);
+  const bkDoc = loadBacklog(cwd, profile);
 
   for (const name of bkDoc.groupOrder) {
     for (const t of bkDoc.groups[name]) {
@@ -119,9 +131,9 @@ export function buildBoard(cwd: string): Board {
     const isProjectBlocked = !!statusLine && /blocked/i.test(statusLine);
 
     for (const name of fpDoc.sectionOrder) {
-      const isHigh = /high/i.test(name);
-      const isBlocked = /blocked/i.test(name);
-      const isCompleted = /completed/i.test(name);
+      const isHigh = nameMatchesAny(name, profile.fixPlan?.highSections, /high|now|next|doing/i);
+      const isBlocked = nameMatchesAny(name, profile.fixPlan?.blockedSections, /blocked/i);
+      const isCompleted = nameMatchesAny(name, profile.fixPlan?.completedSections, /complete|done|shipped/i);
       for (const t of fpDoc.sections[name]) {
         const card: BoardCard = { text: t.text, source: 'fix_plan', priority: name, done: t.done };
         if (t.done || isCompleted) columns.done.push(card);
@@ -152,10 +164,13 @@ export function buildBoard(cwd: string): Board {
     const text = snap.breakerReason
       ? `Ralph halted: ${snap.breakerReason}`
       : 'Circuit breaker OPEN — Ralph halted';
+    const breakerFile = profile.breaker
+      ? path.join(profile.root, profile.breaker.file)
+      : '.ralph/.circuit_breaker_state';
     columns.blocked.push({
       text,
       source: 'breaker',
-      priority: 'Fix it, then delete .ralph/.circuit_breaker_state to reset',
+      priority: `Fix it, then delete ${breakerFile} to reset`,
       done: false,
       kind: 'banner',
     });
@@ -171,8 +186,8 @@ export function buildBoard(cwd: string): Board {
   };
 }
 
-function requireInitialized(cwd: string, res: Response): boolean {
-  const health = doctor.inspect(cwd);
+function requireInitialized(cwd: string, res: Response, profile: Profile): boolean {
+  const health = doctor.inspect(cwd, profile);
   if (health.state !== 'initialized') {
     res.status(409).json({ error: 'project-uninitialized', state: health.state, reasons: health.reasons });
     return false;
@@ -182,9 +197,10 @@ function requireInitialized(cwd: string, res: Response): boolean {
 
 export function createRouter(cwd: string): Router {
   const router = express.Router();
+  const profile = loadProfile(cwd);
 
   router.get('/board', (_req: Request, res: Response) => {
-    res.json(buildBoard(cwd));
+    res.json(buildBoard(cwd, profile));
   });
 
   router.get('/stream', (req: Request, res: Response) => {
@@ -198,14 +214,14 @@ export function createRouter(cwd: string): Router {
 
     const send = (): void => {
       try {
-        res.write(`data: ${JSON.stringify(buildBoard(cwd))}\n\n`);
+        res.write(`data: ${JSON.stringify(buildBoard(cwd, profile))}\n\n`);
       } catch {
         /* connection closed */
       }
     };
 
     send();
-    const watcher = chokidar.watch(state.watchedPaths(cwd), {
+    const watcher = chokidar.watch(state.watchedPaths(cwd, profile), {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 150, pollInterval: 50 },
     });
@@ -226,7 +242,7 @@ export function createRouter(cwd: string): Router {
   });
 
   router.post('/task', (req: Request, res: Response) => {
-    if (!requireInitialized(cwd, res)) return;
+    if (!requireInitialized(cwd, res, profile)) return;
     const { text, destination } = (req.body || {}) as { text?: string; destination?: string };
     if (!text || !destination) {
       res.status(400).json({ error: 'text and destination required' });
@@ -234,24 +250,24 @@ export function createRouter(cwd: string): Router {
     }
 
     if (destination === 'backlog') {
-      const doc = loadBacklog(cwd);
+      const doc = loadBacklog(cwd, profile);
       backlogParser.addTask(doc, text, 'Ideas');
-      saveBacklog(cwd, doc);
+      saveBacklog(cwd, doc, profile);
     } else {
-      const doc = loadFixPlan(cwd);
+      const doc = loadFixPlan(cwd, profile);
       if (!doc) {
         res.status(404).json({ error: 'no fix_plan.md' });
         return;
       }
-      const section = destination === 'blocked' ? 'Blocked' : 'High Priority';
+      const section = destination === 'blocked' ? firstBlockedSection(profile) : firstHighSection(profile);
       fixPlanParser.addTask(doc, section, text);
-      saveFixPlan(cwd, doc);
+      saveFixPlan(cwd, doc, profile);
     }
     res.json({ ok: true });
   });
 
   router.post('/task/toggle', (req: Request, res: Response) => {
-    if (!requireInitialized(cwd, res)) return;
+    if (!requireInitialized(cwd, res, profile)) return;
     const { text, source } = (req.body || {}) as { text?: string; source?: string };
     if (!text) {
       res.status(400).json({ error: 'text required' });
@@ -259,25 +275,25 @@ export function createRouter(cwd: string): Router {
     }
 
     if (source === 'backlog') {
-      const doc = loadBacklog(cwd);
+      const doc = loadBacklog(cwd, profile);
       if (!backlogParser.toggleTask(doc, text)) {
         res.status(404).json({ error: 'task not found' });
         return;
       }
-      saveBacklog(cwd, doc);
+      saveBacklog(cwd, doc, profile);
     } else {
-      const doc = loadFixPlan(cwd);
+      const doc = loadFixPlan(cwd, profile);
       if (!doc || !fixPlanParser.toggleTask(doc, text)) {
         res.status(404).json({ error: 'task not found' });
         return;
       }
-      saveFixPlan(cwd, doc);
+      saveFixPlan(cwd, doc, profile);
     }
     res.json({ ok: true });
   });
 
   router.post('/task/move', (req: Request, res: Response) => {
-    if (!requireInitialized(cwd, res)) return;
+    if (!requireInitialized(cwd, res, profile)) return;
     const { text, source, toColumn } = (req.body || {}) as {
       text?: string;
       source?: string;
@@ -291,19 +307,19 @@ export function createRouter(cwd: string): Router {
     try {
       if (toColumn === 'done') {
         if (source === 'backlog') {
-          const doc = loadBacklog(cwd);
+          const doc = loadBacklog(cwd, profile);
           if (!backlogParser.toggleTask(doc, text)) {
             res.status(404).json({ error: 'task not found' });
             return;
           }
-          saveBacklog(cwd, doc);
+          saveBacklog(cwd, doc, profile);
         } else {
-          const doc = loadFixPlan(cwd);
+          const doc = loadFixPlan(cwd, profile);
           if (!doc || !fixPlanParser.toggleTask(doc, text)) {
             res.status(404).json({ error: 'task not found' });
             return;
           }
-          saveFixPlan(cwd, doc);
+          saveFixPlan(cwd, doc, profile);
         }
         res.json({ ok: true });
         return;
@@ -314,21 +330,21 @@ export function createRouter(cwd: string): Router {
           res.json({ ok: true });
           return;
         }
-        promote.demoteToBacklog(cwd, text);
+        promote.demoteToBacklog(cwd, text, profile);
         res.json({ ok: true });
         return;
       }
 
       if (toColumn === 'todo' || toColumn === 'inProgress') {
         if (source === 'backlog') {
-          promote.promoteToTodo(cwd, text);
+          promote.promoteToTodo(cwd, text, profile);
         } else {
-          const doc = loadFixPlan(cwd);
-          if (!doc || !fixPlanParser.moveTask(doc, text, 'High Priority')) {
+          const doc = loadFixPlan(cwd, profile);
+          if (!doc || !fixPlanParser.moveTask(doc, text, firstHighSection(profile))) {
             res.status(404).json({ error: 'task not found' });
             return;
           }
-          saveFixPlan(cwd, doc);
+          saveFixPlan(cwd, doc, profile);
         }
         res.json({ ok: true });
         return;
@@ -336,19 +352,19 @@ export function createRouter(cwd: string): Router {
 
       if (toColumn === 'blocked') {
         if (source === 'backlog') {
-          promote.promoteToTodo(cwd, text);
-          const doc = loadFixPlan(cwd);
+          promote.promoteToTodo(cwd, text, profile);
+          const doc = loadFixPlan(cwd, profile);
           if (doc) {
-            fixPlanParser.moveTask(doc, text, 'Blocked');
-            saveFixPlan(cwd, doc);
+            fixPlanParser.moveTask(doc, text, firstBlockedSection(profile));
+            saveFixPlan(cwd, doc, profile);
           }
         } else {
-          const doc = loadFixPlan(cwd);
-          if (!doc || !fixPlanParser.moveTask(doc, text, 'Blocked')) {
+          const doc = loadFixPlan(cwd, profile);
+          if (!doc || !fixPlanParser.moveTask(doc, text, firstBlockedSection(profile))) {
             res.status(404).json({ error: 'task not found' });
             return;
           }
-          saveFixPlan(cwd, doc);
+          saveFixPlan(cwd, doc, profile);
         }
         res.json({ ok: true });
         return;
