@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ralph Kit — Kanban</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Ralph&nbsp;Kit</h1>
+      <div class="meta">
+        <span id="title">—</span>
+        <span id="loop">loop —</span>
+        <span id="status-pill" class="pill">idle</span>
+        <button id="add-btn">+ Add task</button>
+      </div>
+    </header>
+
+    <div id="blocked-banner" class="banner hidden"></div>
+
+    <main id="board">
+      <section class="col" data-col="upNext"><h2>Up Next</h2><ul></ul></section>
+      <section class="col" data-col="inProgress"><h2>In Progress</h2><ul></ul></section>
+      <section class="col" data-col="backlog"><h2>Backlog</h2><ul></ul></section>
+      <section class="col" data-col="done"><h2>Done</h2><ul></ul></section>
+    </main>
+
+    <footer>
+      <pre id="live"></pre>
+    </footer>
+
+    <dialog id="add-dialog">
+      <form method="dialog">
+        <h3>New task</h3>
+        <label>Text<input name="text" required autocomplete="off" /></label>
+        <label>Priority
+          <select name="priority">
+            <option>High Priority</option>
+            <option>Medium Priority</option>
+            <option>Low Priority</option>
+          </select>
+        </label>
+        <menu>
+          <button value="cancel">Cancel</button>
+          <button id="add-submit" value="add">Add</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="board.js"></script>
+  </body>
+</html>
