@@ -49,6 +49,23 @@ interface StatusJson {
   exit_reason?: string;
 }
 
+/**
+ * ISO 8601 timestamp in the local timezone, e.g. `2026-04-16T22:00:00.000+02:00`.
+ * Used for human-facing log lines so the times match the user's clock.
+ */
+export function localTimestamp(d: Date = new Date()): string {
+  const pad = (n: number, w = 2) => String(n).padStart(w, '0');
+  const offsetMin = -d.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const absMin = Math.abs(offsetMin);
+  const offset = `${sign}${pad(Math.floor(absMin / 60))}:${pad(absMin % 60)}`;
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}` +
+    offset
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Status block parsing
 // ---------------------------------------------------------------------------
@@ -175,7 +192,7 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
     fs.writeFileSync(tmpPrompt, prompt, 'utf8');
 
     // Use stream-json for real-time output
-    const cmd = `claude --dangerously-skip-permissions -p --output-format stream-json --allowedTools ${JSON.stringify(allowedTools)} < ${JSON.stringify(tmpPrompt)}`;
+    const cmd = `claude --dangerously-skip-permissions -p --output-format stream-json --verbose --allowedTools ${JSON.stringify(allowedTools)} < ${JSON.stringify(tmpPrompt)}`;
 
     const child = spawn('sh', ['-c', cmd], {
       cwd,
@@ -257,7 +274,7 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
 export async function runLoop(opts: LoopOptions): Promise<void> {
   const { cwd, profile, maxIterations, allowedTools, delayMs, onLog } = opts;
   const log = (msg: string) => {
-    const line = `[${new Date().toISOString()}] ${msg}`;
+    const line = `[${localTimestamp()}] ${msg}`;
     appendLog(cwd, profile, line);
     if (onLog) onLog(line);
     else console.log(line);
