@@ -15,7 +15,8 @@ export type FileRole =
   | 'breaker'
   | 'liveLog'
   | 'specs'
-  | 'backlog';
+  | 'backlog'
+  | 'runnerPrompt';
 
 export type FileFormat = 'markdown' | 'json' | 'shell' | 'text';
 
@@ -224,6 +225,17 @@ export function scan(cwd: string): ScanResult {
   // Add specs directories as found files
   for (const specsPath of specsDirs) {
     files.push({ role: 'specs', path: specsPath, format: 'markdown' });
+  }
+
+  // Reclassify: a prompt file (e.g. CLAUDE.md) that lives in the same directory
+  // as a loop runner (ralph.sh) is part of the runner, not a competing project prompt.
+  const runnerDirs = new Set(
+    files.filter((f) => f.role === 'loopRunner').map((f) => f.path.replace(/\/[^/]+$/, '')),
+  );
+  for (const f of files) {
+    if (f.role === 'prompt' && runnerDirs.has(f.path.replace(/\/[^/]+$/, ''))) {
+      f.role = 'runnerPrompt';
+    }
   }
 
   // Detect conflicts — multiple files claiming the same role

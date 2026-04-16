@@ -55,7 +55,7 @@ describe('scan', () => {
       const result = scan(tmp);
       expect(result.files.find((f) => f.role === 'loopRunner')).toBeDefined();
       expect(result.files.find((f) => f.role === 'taskList')?.format).toBe('json');
-      expect(result.files.find((f) => f.role === 'prompt')).toBeDefined();
+      expect(result.files.find((f) => f.role === 'runnerPrompt')).toBeDefined();
       expect(result.flavor).toBe('snarktank');
     } finally {
       fs.rmSync(tmp, { recursive: true });
@@ -109,8 +109,8 @@ describe('scan', () => {
     }
   });
 
-  it('flags conflict when multiple prompt files exist', () => {
-    const tmp = tmpDir('prompt-conflict');
+  it('reclassifies CLAUDE.md next to ralph.sh as runnerPrompt (no conflict)', () => {
+    const tmp = tmpDir('runner-prompt');
     try {
       scaffold(tmp, {
         '.ralph/PROMPT.md': '# Prompt',
@@ -119,7 +119,9 @@ describe('scan', () => {
       });
       const result = scan(tmp);
       const promptConflict = result.conflicts.find((c) => c.role === 'prompt');
-      expect(promptConflict).toBeDefined();
+      expect(promptConflict).toBeUndefined();
+      expect(result.files.find((f) => f.role === 'runnerPrompt')?.path).toBe('scripts/ralph/CLAUDE.md');
+      expect(result.files.find((f) => f.role === 'prompt')?.path).toBe('.ralph/PROMPT.md');
     } finally {
       fs.rmSync(tmp, { recursive: true });
     }
