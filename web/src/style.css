@@ -161,6 +161,21 @@ button:hover, .btn-secondary:hover { filter: brightness(1.1); }
   padding: 12px 14px 6px;
   margin: 0;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.col h2 .col-count {
+  font-size: 11px;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
 }
 .col[data-col="blocked"] h2 { color: var(--destructive); }
 .col[data-col="inProgress"] h2 { color: var(--warning); }
