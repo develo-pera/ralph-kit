@@ -225,7 +225,10 @@ program
     let implName: string | undefined;
 
     if (detected) {
-      profile = detected.profile;
+      // Enrich fingerprint with probe data (discovers loop, breaker, log files)
+      const probed = probe(cwd, detected.profile.root);
+      profile = probed.rootName ? generateProfile(probed) : detected.profile;
+      if (detected.profile.taskFile) profile.taskFile = detected.profile.taskFile;
       tier = detected.tier;
       implName = detected.implementation;
       if (implName) profile.implementation = implName;

@@ -130,9 +130,13 @@ export function findRootCandidates(cwd: string): string[] {
   return candidates;
 }
 
-export function probe(cwd: string): ProbeResult {
-  const rootCandidates = findRootCandidates(cwd);
-  const rootName = rootCandidates[0] ?? null;
+/**
+ * @param rootOverride — when provided, skip auto-detection and use this as the root dir name.
+ *   Used by fingerprint-based detection to point probe at a known root like `scripts/ralph`.
+ */
+export function probe(cwd: string, rootOverride?: string): ProbeResult {
+  const rootCandidates = rootOverride ? [rootOverride] : findRootCandidates(cwd);
+  const rootName = rootOverride ?? (rootCandidates[0] ?? null);
   const rootDir = rootName ? path.join(cwd, rootName) : null;
 
   const files: ProbedFile[] = [];

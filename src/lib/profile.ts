@@ -291,10 +291,15 @@ export function loadProfile(cwd: string): Profile {
   // Tier 1 & 2: declaration file or known implementation fingerprint
   const detected = detect(cwd);
   if (detected) {
-    const profile = detected.profile;
-    if (detected.implementation) profile.implementation = detected.implementation;
-    cache.set(cwd, profile);
-    return profile;
+    // Enrich with probe data — fingerprint identifies the implementation,
+    // but probe discovers the actual files inside the root (loop, breaker, log).
+    const probed = probe(cwd, detected.profile.root);
+    const enriched = probed.rootName ? generateProfile(probed) : detected.profile;
+    // Overlay fingerprint-specific fields that probe can't discover
+    if (detected.profile.taskFile) enriched.taskFile = detected.profile.taskFile;
+    if (detected.implementation) enriched.implementation = detected.implementation;
+    cache.set(cwd, enriched);
+    return enriched;
   }
 
   // Tier 3: heuristic probe
