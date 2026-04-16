@@ -31,7 +31,7 @@ jobs:
         run: npx tsc -p web/tsconfig.json --noEmit
 
       - name: Unit tests with coverage
-        run: npm run test:coverage
+        run: npm run test:coverage -- --reporter=json --outputFile=test-results.json
 
       - name: Coverage summary on PR
         uses: davelosert/vitest-coverage-report-action@v2
@@ -44,9 +44,13 @@ jobs:
         id: metrics
         run: |
           COV=$(node -e "const c = require('./coverage/coverage-summary.json'); console.log(c.total.statements.pct)")
+          TESTS=$(node -e "const r = require('./test-results.json'); const passed = r.numPassedTests; const failed = r.numFailedTests; console.log(passed + ',' + failed)")
+          PASSED=$(echo "$TESTS" | cut -d, -f1)
+          FAILED=$(echo "$TESTS" | cut -d, -f2)
           echo "coverage=$COV" >> "$GITHUB_OUTPUT"
-          TESTS=$(node -e "const fs = require('fs'); const j = JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8')); const files = Object.keys(j).filter(k=>k!=='total').length; console.log(files)")
-          echo "Coverage: $COV%"
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "Coverage: $COV% | Tests: $PASSED passed, $FAILED failed"
 
       - name: Update coverage badge
         if: github.ref == 'refs/heads/main'
@@ -60,6 +64,17 @@ jobs:
           valColorRange: ${{ steps.metrics.outputs.coverage }}
           minColorRange: 40
           maxColorRange: 90
+
+      - name: Update tests badge
+        if: github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: ralph-kit-tests.json
+          label: tests
+          message: ${{ steps.metrics.outputs.passed }} passing
+          color: ${{ steps.metrics.outputs.failed == '0' && 'brightgreen' || 'red' }}
 
       - name: Build
         run: npm run build
