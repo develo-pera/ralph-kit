@@ -307,19 +307,76 @@ program
       console.log(chalk.gray(`  max iterations: ${opts.max}`));
       console.log('');
 
-      // Delegate to the external runner
+      const ralphRoot = path.join(cwd, profile.root);
+      fs.mkdirSync(ralphRoot, { recursive: true });
+      const logFile = path.join(ralphRoot, profile.liveLog?.file ?? 'live.log');
+      const statusFile = path.join(ralphRoot, profile.loop?.file ?? 'status.json');
+
+      // Write initial status so the board knows we're running
+      const writeRunnerStatus = (status: string, extra?: Record<string, unknown>) => {
+        const obj = { timestamp: new Date().toISOString(), loop_count: 0, status, last_action: 'external_runner', ...extra };
+        fs.writeFileSync(statusFile, JSON.stringify(obj, null, 4) + '\n');
+      };
+      writeRunnerStatus('running');
+
+      // Append to live.log so the board sees output
+      const appendToLog = (text: string) => {
+        fs.appendFileSync(logFile, text);
+      };
+      appendToLog(`[${new Date().toISOString()}] ralph-kit run — delegating to ${runner.path}\n`);
+
+      // Delegate to the external runner, capturing output for live.log
       const { spawn: spawnChild } = await import('node:child_process');
       const args = ['--tool', 'claude', opts.max];
       const child = spawnChild(runnerPath, args, {
         cwd,
-        stdio: 'inherit',
+        stdio: ['inherit', 'pipe', 'pipe'],
         env: { ...process.env },
       });
 
+      // Parse iteration numbers from runner output to update loop_count
+      const iterationRe = /Iteration\s+(\d+)\s+of\s+(\d+)/i;
+
+      child.stdout.on('data', (data: Buffer) => {
+        const text = data.toString();
+        process.stdout.write(text);
+        appendToLog(text);
+
+        const match = text.match(iterationRe);
+        if (match) {
+          writeRunnerStatus('running', { loop_count: parseInt(match[1], 10) });
+        }
+      });
+
+      child.stderr.on('data', (data: Buffer) => {
+        const text = data.toString();
+        process.stderr.write(text);
+        appendToLog(text);
+      });
+
+      // Clean up on interrupt
+      const runnerCleanup = () => {
+        writeRunnerStatus('interrupted', { last_action: 'user_cancelled' });
+        appendToLog(`[${new Date().toISOString()}] Interrupted by user\n`);
+        child.kill();
+        process.exit(130);
+      };
+      process.on('SIGINT', runnerCleanup);
+      process.on('SIGTERM', runnerCleanup);
+
       child.on('close', (code) => {
+        process.removeListener('SIGINT', runnerCleanup);
+        process.removeListener('SIGTERM', runnerCleanup);
+        const finalStatus = code === 0 ? 'complete' : 'halted';
+        writeRunnerStatus(finalStatus, code !== 0 ? { exit_reason: `Runner exited with code ${code}` } : {});
+        appendToLog(`[${new Date().toISOString()}] Runner exited with code ${code}\n`);
         process.exit(code ?? 0);
       });
+
       child.on('error', (err) => {
+        process.removeListener('SIGINT', runnerCleanup);
+        process.removeListener('SIGTERM', runnerCleanup);
+        writeRunnerStatus('halted', { exit_reason: err.message });
         console.error(chalk.red(`Failed to start runner: ${err.message}`));
         process.exit(1);
       });
