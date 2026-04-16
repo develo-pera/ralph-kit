@@ -137,7 +137,6 @@ Your capture inbox. Ralph does not read this file — use \`/ralph-kit:promote\`
 ## Features
 
 ## Ideas
-- [ ] (delete this placeholder once you've added real items)
 
 ## Bugs
 `;
