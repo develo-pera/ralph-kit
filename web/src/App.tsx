@@ -29,7 +29,8 @@ export function App() {
   const toast = useToast();
   const [addOpen, setAddOpen] = useState(false);
 
-  const title = board?.title || '(no fix_plan.md)';
+  const currentTask = board?.columns.inProgress?.[0]?.text;
+  const title = currentTask || board?.statusLine || 'Waiting for tasks';
   const loopCount = board?.meta?.loopCount ?? '—';
   const rawStatus = board?.meta?.loopStatus || board?.meta?.state || 'idle';
   const status = connected ? rawStatus : 'disconnected';
