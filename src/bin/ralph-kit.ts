@@ -18,6 +18,7 @@ import { scan, profileFromScan } from '../lib/scanner';
 import { listFlavors, getFlavor, type Flavor } from '../lib/flavors';
 import { execSync } from 'node:child_process';
 import { start } from '../server';
+import { localTimestamp } from '../lib/loop';
 import pkg from '../../package.json';
 
 const program = new Command();
@@ -323,7 +324,7 @@ program
       const appendToLog = (text: string) => {
         fs.appendFileSync(logFile, text);
       };
-      appendToLog(`[${new Date().toISOString()}] ralph-kit run — delegating to ${runner.path}\n`);
+      appendToLog(`[${localTimestamp()}] ralph-kit run — delegating to ${runner.path}\n`);
 
       // Delegate to the external runner, capturing output for live.log
       const { createSpinner } = await import('../lib/spinner.js');
@@ -366,7 +367,7 @@ program
       const runnerCleanup = () => {
         runnerSpinner.stop('interrupted');
         writeRunnerStatus('interrupted', { last_action: 'user_cancelled' });
-        appendToLog(`[${new Date().toISOString()}] Interrupted by user\n`);
+        appendToLog(`[${localTimestamp()}] Interrupted by user\n`);
         child.kill();
         process.exit(130);
       };
@@ -379,7 +380,7 @@ program
         process.removeListener('SIGTERM', runnerCleanup);
         const finalStatus = code === 0 ? 'complete' : 'halted';
         writeRunnerStatus(finalStatus, code !== 0 ? { exit_reason: `Runner exited with code ${code}` } : {});
-        appendToLog(`[${new Date().toISOString()}] Runner exited with code ${code}\n`);
+        appendToLog(`[${localTimestamp()}] Runner exited with code ${code}\n`);
         process.exit(code ?? 0);
       });
 
