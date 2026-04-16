@@ -33,12 +33,33 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
-      - name: Coverage summary
+      - name: Coverage summary on PR
         uses: davelosert/vitest-coverage-report-action@v2
-        if: always()
+        if: github.event_name == 'pull_request'
         with:
           json-summary-path: coverage/coverage-summary.json
           json-final-path: coverage/coverage-final.json
+
+      - name: Extract test and coverage metrics
+        id: metrics
+        run: |
+          COV=$(node -e "const c = require('./coverage/coverage-summary.json'); console.log(c.total.statements.pct)")
+          echo "coverage=$COV" >> "$GITHUB_OUTPUT"
+          TESTS=$(node -e "const fs = require('fs'); const j = JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8')); const files = Object.keys(j).filter(k=>k!=='total').length; console.log(files)")
+          echo "Coverage: $COV%"
+
+      - name: Update coverage badge
+        if: github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: ralph-kit-coverage.json
+          label: coverage
+          message: ${{ steps.metrics.outputs.coverage }}%
+          valColorRange: ${{ steps.metrics.outputs.coverage }}
+          minColorRange: 40
+          maxColorRange: 90
 
       - name: Build
         run: npm run build
