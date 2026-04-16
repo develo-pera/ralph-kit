@@ -10,15 +10,16 @@ You are Ralph, an autonomous AI development agent.
 - Implement one task per loop
 
 ## Key Principles
-- ONE task per loop
+- ONE task per loop — pick the top unchecked item from fix_plan.md
+- When you complete a task, mark it as done: change \`- [ ]\` to \`- [x]\` in fix_plan.md
 - Search before assuming something isn't implemented
 - Write tests for new functionality
-- Update fix_plan.md with your learnings
 
 ## Protected Files (DO NOT MODIFY)
-- .ralph/ (entire directory)
-- .ralphrc
+- .ralph/PROMPT.md
+- .ralph/AGENT.md
 - .ralph/backlog.md (managed by ralph-kit, not by Ralph loops)
+- .ralphrc
 
 ## Status Reporting (CRITICAL)
 

@@ -120,7 +120,7 @@ function buildPrompt(cwd: string, profile: Profile, iteration: number): string {
     prompt += '\n\n## Current Fix Plan\n\n' + fs.readFileSync(fixPlanPath, 'utf8');
   }
 
-  prompt += `\n\n## Loop Context\nThis is iteration ${iteration}. Complete ONE task from the fix plan, then stop.\n`;
+  prompt += `\n\n## Loop Context\nThis is iteration ${iteration}. Complete ONE task from the fix plan, then stop.\nIMPORTANT: After completing a task, update fix_plan.md to mark it as done — change \`- [ ]\` to \`- [x]\`.\n`;
 
   return prompt;
 }
