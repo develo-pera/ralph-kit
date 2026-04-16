@@ -1,5 +1,11 @@
 # ralph-kit
 
+[![CI](https://github.com/develo-pera/ralph-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/develo-pera/ralph-kit/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-66%20passing-brightgreen)](https://github.com/develo-pera/ralph-kit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@develo-pera/ralph-kit)](https://www.npmjs.com/package/@develo-pera/ralph-kit)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Agent: Claude Code](https://img.shields.io/badge/agent-Claude%20Code-blueviolet)](https://claude.ai/claude-code)
+
 Conversational questionnaire + local Kanban dashboard + loop runner for [Ralph Loop](https://ghuntley.com/ralph/) projects.
 
 Works with any Ralph Loop implementation — [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code), [snarktank/ralph](https://github.com/snarktank/ralph), or a custom setup. ralph-kit scans your entire project, detects the layout, and drives the board and loop runner automatically.
