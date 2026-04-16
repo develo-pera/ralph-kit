@@ -283,7 +283,6 @@ program
   .option('--allowed-tools <tools>', 'allowed tools for Claude Code', 'Write,Read,Edit,Bash')
   .option('--delay <ms>', 'delay between iterations in ms', '2000')
   .action(async (opts: { dir: string; max: string; allowedTools: string; delay: string }) => {
-    const { runLoop } = await import('../lib/loop.js');
     const cwd = path.resolve(opts.dir);
     const profile = loadProfile(cwd);
     const health = doctor.inspect(cwd, profile);
@@ -297,6 +296,39 @@ program
       process.exit(1);
     }
 
+    // Check if an external loop runner exists — delegate to it instead of built-in loop
+    const scanResult = scan(cwd);
+    const runner = scanResult.files.find((f) => f.role === 'loopRunner');
+
+    if (runner) {
+      const runnerPath = path.resolve(cwd, runner.path);
+      console.log(chalk.bold(`\nralph-kit run — delegating to ${runner.path}\n`));
+      console.log(chalk.gray(`  runner: ${runnerPath}`));
+      console.log(chalk.gray(`  max iterations: ${opts.max}`));
+      console.log('');
+
+      // Delegate to the external runner
+      const { spawn: spawnChild } = await import('node:child_process');
+      const args = ['--tool', 'claude', opts.max];
+      const child = spawnChild(runnerPath, args, {
+        cwd,
+        stdio: 'inherit',
+        env: { ...process.env },
+      });
+
+      child.on('close', (code) => {
+        process.exit(code ?? 0);
+      });
+      child.on('error', (err) => {
+        console.error(chalk.red(`Failed to start runner: ${err.message}`));
+        process.exit(1);
+      });
+      return;
+    }
+
+    // No external runner — use built-in loop
+    const { runLoop } = await import('../lib/loop.js');
+
     // Check claude is available
     try {
       execSync('claude --version', { stdio: 'pipe' });
@@ -305,7 +337,7 @@ program
       process.exit(1);
     }
 
-    console.log(chalk.bold(`\nralph-kit run — ${profile.root}/\n`));
+    console.log(chalk.bold(`\nralph-kit run — built-in loop (${profile.root}/)\n`));
     console.log(chalk.gray(`  max iterations: ${opts.max}`));
     console.log(chalk.gray(`  allowed tools:  ${opts.allowedTools}`));
     console.log(chalk.gray(`  delay:          ${opts.delay}ms`));
