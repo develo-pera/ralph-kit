@@ -276,6 +276,52 @@ program
   });
 
 program
+  .command('run')
+  .description('Run the Ralph loop — spawns Claude Code iteratively to work through fix_plan.md')
+  .option('-d, --dir <dir>', 'project dir', process.cwd())
+  .option('-n, --max <n>', 'max iterations', '10')
+  .option('--allowed-tools <tools>', 'allowed tools for Claude Code', 'Write,Read,Edit,Bash')
+  .option('--delay <ms>', 'delay between iterations in ms', '2000')
+  .action(async (opts: { dir: string; max: string; allowedTools: string; delay: string }) => {
+    const { runLoop } = await import('../lib/loop.js');
+    const cwd = path.resolve(opts.dir);
+    const profile = loadProfile(cwd);
+    const health = doctor.inspect(cwd, profile);
+
+    if (health.state === 'missing') {
+      console.error(chalk.red(`No Ralph directory found. Run: ralph-kit init --flavor ralph-kit`));
+      process.exit(1);
+    }
+    if (health.state === 'uninitialized') {
+      console.error(chalk.yellow(`Project not defined yet. Run /ralph-kit:define in Claude Code first.`));
+      process.exit(1);
+    }
+
+    // Check claude is available
+    try {
+      execSync('claude --version', { stdio: 'pipe' });
+    } catch {
+      console.error(chalk.red('Claude Code CLI not found. Install it first: https://claude.ai/claude-code'));
+      process.exit(1);
+    }
+
+    console.log(chalk.bold(`\nralph-kit run — ${profile.root}/\n`));
+    console.log(chalk.gray(`  max iterations: ${opts.max}`));
+    console.log(chalk.gray(`  allowed tools:  ${opts.allowedTools}`));
+    console.log(chalk.gray(`  delay:          ${opts.delay}ms`));
+    console.log('');
+
+    await runLoop({
+      cwd,
+      profile,
+      maxIterations: parseInt(opts.max, 10),
+      allowedTools: opts.allowedTools,
+      delayMs: parseInt(opts.delay, 10),
+      onLog: (line: string) => console.log(chalk.gray(line)),
+    });
+  });
+
+program
   .command('doctor')
   .description('Validate Ralph directory layout')
   .option('-d, --dir <dir>', 'project dir', process.cwd())
