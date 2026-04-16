@@ -55,7 +55,7 @@ function printProfileSummary(profile: Profile): void {
   }
   console.log(
     chalk.gray(
-      `  ${pad('breaker')}${profile.breaker ? `${profile.breaker.file}${profile.breaker.reasonField ? `  (reason: ${profile.breaker.reasonField})` : ''}` : '(none detected)'}`,
+      `  ${pad('breaker')}${profile.breaker ? `${profile.breaker.file}${profile.breaker.fromStatus ? '  (from status)' : ''}${profile.breaker.reasonField ? `  (reason: ${profile.breaker.reasonField})` : ''}${profile.breaker.statusReasonField ? `  (reason: ${profile.breaker.statusReasonField})` : ''}` : '(none detected)'}`,
     ),
   );
   console.log(

@@ -20,6 +20,17 @@ export interface BreakerProfile {
   file: string;
   openPattern?: string;
   reasonField?: string;
+  /**
+   * When true, breaker state is inferred from the loop status file
+   * (e.g. status.json "status": "halted") rather than a dedicated breaker file.
+   */
+  fromStatus?: boolean;
+  /** Field in status JSON whose value signals the breaker is open (default: "status"). */
+  statusField?: string;
+  /** Regex pattern to match the halted value (default: "halted|stopped|error"). */
+  haltedPattern?: string;
+  /** Field in status JSON containing the reason (default: "exit_reason"). */
+  statusReasonField?: string;
 }
 
 export interface LiveLogProfile {
@@ -106,15 +117,39 @@ function pickLoopCandidates(files: ProbedFile[]): ProbedFile[] {
     });
 }
 
-function pickBreaker(files: ProbedFile[]): ProbedFile | null {
+interface BreakerDetection {
+  kind: 'dedicated' | 'fromStatus';
+  file: ProbedFile;
+}
+
+const HALTED_RE = /^(halted|stopped|error|failed|exited)$/i;
+
+function pickBreaker(files: ProbedFile[]): BreakerDetection | null {
+  // 1. Prefer a dedicated breaker file (e.g. .circuit_breaker_state with state: OPEN/CLOSED)
   for (const f of files) {
     if (!BREAKER_NAME_RE.test(f.name)) continue;
     if (f.type !== 'json' || !f.jsonShape) continue;
     if (f.jsonShape.state !== 'string') continue;
     const stateValue = f.jsonValues?.state;
     if (typeof stateValue !== 'string' || !BREAKER_STATE_VALUES.test(stateValue)) continue;
-    return f;
+    return { kind: 'dedicated', file: f };
   }
+
+  // 2. Fall back: check if status.json signals halted with an exit_reason
+  //    (common pattern: { status: "halted", exit_reason: "permission_denied" })
+  for (const f of files) {
+    if (f.type !== 'json' || !f.jsonShape) continue;
+    if (f.jsonShape.status !== 'string') continue;
+    const statusVal = f.jsonValues?.status;
+    if (typeof statusVal !== 'string' || !HALTED_RE.test(statusVal)) continue;
+    // Must have some kind of reason/exit field to distinguish from normal status
+    const hasReason = f.jsonShape.exit_reason === 'string'
+      || f.jsonShape.reason === 'string'
+      || f.jsonShape.error === 'string';
+    if (!hasReason) continue;
+    return { kind: 'fromStatus', file: f };
+  }
+
   return null;
 }
 
@@ -170,12 +205,28 @@ export function generateProfile(result: ProbeResult): Profile {
     }
   }
 
-  const breakerFile = pickBreaker(result.files);
-  if (breakerFile) {
-    profile.breaker = {
-      file: breakerFile.name,
-      reasonField: breakerFile.jsonShape?.reason === 'string' ? 'reason' : undefined,
-    };
+  const breakerDetection = pickBreaker(result.files);
+  if (breakerDetection) {
+    if (breakerDetection.kind === 'dedicated') {
+      profile.breaker = {
+        file: breakerDetection.file.name,
+        reasonField: breakerDetection.file.jsonShape?.reason === 'string' ? 'reason' : undefined,
+      };
+    } else {
+      // fromStatus: breaker state is inferred from the loop status file
+      const f = breakerDetection.file;
+      const reasonField = f.jsonShape?.exit_reason === 'string' ? 'exit_reason'
+        : f.jsonShape?.reason === 'string' ? 'reason'
+        : f.jsonShape?.error === 'string' ? 'error'
+        : undefined;
+      profile.breaker = {
+        file: f.name,
+        fromStatus: true,
+        statusField: 'status',
+        haltedPattern: 'halted|stopped|error|failed|exited',
+        statusReasonField: reasonField,
+      };
+    }
   }
 
   const logFile = pickLiveLog(result.files);

@@ -97,11 +97,26 @@ export function snapshot(cwd: string, profile: Profile = defaultProfile()): Snap
     : null;
 
   const breakerConf = profile.breaker;
-  const cbRaw = breakerConf ? readText(path.join(dir, breakerConf.file)) : null;
-  const breaker = parseBreakerState(cbRaw, {
-    openPattern: breakerConf?.openPattern,
-    reasonField: breakerConf?.reasonField,
-  });
+  let breaker: BreakerState;
+  if (breakerConf?.fromStatus) {
+    // Breaker state is inferred from the loop status file
+    const statusObj = (breakerConf.file === profile.loop?.file ? status : readJSON<Record<string, unknown>>(path.join(dir, breakerConf.file))) as Record<string, unknown> | null;
+    const field = breakerConf.statusField ?? 'status';
+    const haltedRe = new RegExp(breakerConf.haltedPattern ?? 'halted|stopped|error|failed|exited', 'i');
+    const reasonKey = breakerConf.statusReasonField ?? 'exit_reason';
+    const fieldVal = statusObj?.[field];
+    const reasonVal = statusObj?.[reasonKey];
+    breaker = {
+      open: typeof fieldVal === 'string' && haltedRe.test(fieldVal),
+      reason: typeof reasonVal === 'string' && reasonVal.trim() ? reasonVal.trim() : null,
+    };
+  } else {
+    const cbRaw = breakerConf ? readText(path.join(dir, breakerConf.file)) : null;
+    breaker = parseBreakerState(cbRaw, {
+      openPattern: breakerConf?.openPattern,
+      reasonField: breakerConf?.reasonField,
+    });
+  }
 
   const logConf = profile.liveLog;
   const liveLog = logConf ? readText(path.join(dir, logConf.file)) || '' : '';
