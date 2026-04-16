@@ -50,7 +50,12 @@ export function Column({ id, title, cards, gated, onError }: Props) {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <h2>{title}</h2>
+      <h2>
+        {title}
+        <span className="col-count" aria-label={`${cards.length} card${cards.length === 1 ? '' : 's'}`}>
+          {cards.length}
+        </span>
+      </h2>
       <ul>
         {cards.map((card, i) => (
           <Card key={`${card.source ?? 'x'}:${card.text}:${i}`} card={card} />
