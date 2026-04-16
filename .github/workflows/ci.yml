@@ -30,8 +30,15 @@ jobs:
       - name: Typecheck (web)
         run: npx tsc -p web/tsconfig.json --noEmit
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Coverage summary
+        uses: davelosert/vitest-coverage-report-action@v2
+        if: always()
+        with:
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
 
       - name: Build
         run: npm run build
