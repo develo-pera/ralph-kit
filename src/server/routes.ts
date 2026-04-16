@@ -11,6 +11,7 @@ import * as promote from '../lib/promote';
 import { atomicWrite, backup } from '../lib/writers';
 import type { Profile } from '../lib/profile';
 import { defaultProfile, loadProfile } from '../lib/profile';
+import { loadHistory, appendResolved } from '../lib/history';
 
 type ColumnId = 'backlog' | 'todo' | 'inProgress' | 'blocked' | 'done';
 
@@ -88,6 +89,15 @@ function firstBlockedSection(profile: Profile): string {
   return profile.fixPlan?.blockedSections?.[0] ?? 'Blocked';
 }
 
+interface PrevBlockedState {
+  breakerOpen: boolean;
+  breakerText: string | null;
+  statusBlocked: boolean;
+  statusText: string | null;
+}
+
+const prevState = new Map<string, PrevBlockedState>();
+
 export function buildBoard(cwd: string, profile: Profile = defaultProfile()): Board {
   const snap = state.snapshot(cwd, profile);
   const health = doctor.inspect(cwd, profile);
@@ -126,6 +136,7 @@ export function buildBoard(cwd: string, profile: Profile = defaultProfile()): Bo
   }
 
   let statusLine: string | null = null;
+  let statusBlocked = false;
   if (fpDoc) {
     statusLine = fpDoc.statusLine;
     const isProjectBlocked = !!statusLine && /blocked/i.test(statusLine);
@@ -157,24 +168,53 @@ export function buildBoard(cwd: string, profile: Profile = defaultProfile()): Bo
         kind: 'banner',
       });
       meta.blocked = true;
+      statusBlocked = true;
     }
   }
 
-  if (snap.breakerOpen) {
-    const text = snap.breakerReason
-      ? `Ralph halted: ${snap.breakerReason}`
-      : 'Circuit breaker OPEN — Ralph halted';
+  const breakerText = snap.breakerOpen
+    ? (snap.breakerReason ? `Ralph halted: ${snap.breakerReason}` : 'Circuit breaker OPEN — Ralph halted')
+    : null;
+
+  if (snap.breakerOpen && breakerText) {
     const breakerFile = profile.breaker
       ? path.join(profile.root, profile.breaker.file)
       : '.ralph/.circuit_breaker_state';
     columns.blocked.push({
-      text,
+      text: breakerText,
       source: 'breaker',
       priority: `Fix it, then delete ${breakerFile} to reset`,
       done: false,
       kind: 'banner',
     });
     meta.blocked = true;
+  }
+
+  const prev = prevState.get(cwd);
+  if (prev) {
+    if (prev.breakerOpen && !snap.breakerOpen && prev.breakerText) {
+      appendResolved(cwd, { text: prev.breakerText, source: 'breaker' });
+    }
+    if (prev.statusBlocked && !statusBlocked && prev.statusText) {
+      appendResolved(cwd, { text: prev.statusText, source: 'status' });
+    }
+  }
+  prevState.set(cwd, {
+    breakerOpen: snap.breakerOpen,
+    breakerText,
+    statusBlocked,
+    statusText: statusBlocked ? statusLine : null,
+  });
+
+  const history = loadHistory(cwd);
+  for (const event of history.resolved) {
+    columns.done.push({
+      text: `Resolved: ${event.text}`,
+      source: event.source,
+      priority: `Resolved ${new Date(event.resolvedAt).toLocaleDateString()}`,
+      done: true,
+      kind: 'banner',
+    });
   }
 
   return {
