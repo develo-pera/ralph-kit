@@ -253,11 +253,27 @@ export async function runLoop(opts: LoopOptions): Promise<void> {
     else console.log(line);
   };
 
+  // Clean up status on interrupt (ctrl+C)
+  let currentIteration = 0;
+  const cleanup = () => {
+    log('Interrupted — cleaning up');
+    writeStatus(cwd, profile, {
+      timestamp: new Date().toISOString(),
+      loop_count: currentIteration,
+      status: 'interrupted',
+      last_action: 'user_cancelled',
+    });
+    process.exit(130);
+  };
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+
   log(`ralph-kit loop starting — max ${maxIterations} iterations`);
 
   let consecutiveErrors = 0;
 
   for (let i = 1; i <= maxIterations; i++) {
+    currentIteration = i;
     log(`═══ Iteration ${i} of ${maxIterations} ═══`);
 
     writeStatus(cwd, profile, {
@@ -354,6 +370,9 @@ export async function runLoop(opts: LoopOptions): Promise<void> {
       await new Promise((r) => setTimeout(r, delayMs));
     }
   }
+
+  process.removeListener('SIGINT', cleanup);
+  process.removeListener('SIGTERM', cleanup);
 
   log(`Reached max iterations (${maxIterations}). Loop finished.`);
   writeStatus(cwd, profile, {
