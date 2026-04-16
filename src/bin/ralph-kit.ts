@@ -14,7 +14,7 @@ import {
   type Profile,
 } from '../lib/profile';
 import { probe } from '../lib/probe';
-import { detect } from '../lib/fingerprint';
+import { scan, profileFromScan } from '../lib/scanner';
 import { start } from '../server';
 import pkg from '../../package.json';
 
@@ -218,39 +218,36 @@ program
   .action((opts: { dir: string; dryRun?: boolean; force?: boolean }) => {
     const cwd = path.resolve(opts.dir);
 
-    // Tier 1 & 2: declaration or fingerprint
-    const detected = detect(cwd);
-    let profile: Profile;
-    let tier: string | undefined;
-    let implName: string | undefined;
+    // Full-project scan
+    const scanResult = scan(cwd);
 
-    if (detected) {
-      // Enrich fingerprint with probe data (discovers loop, breaker, log files)
-      const probed = probe(cwd, detected.profile.root);
-      profile = probed.rootName ? generateProfile(probed) : detected.profile;
-      if (detected.profile.taskFile) profile.taskFile = detected.profile.taskFile;
-      tier = detected.tier;
-      implName = detected.implementation;
-      if (implName) profile.implementation = implName;
-      console.log(chalk.green(`Detected Ralph project at  ${profile.root}/`));
-    } else {
-      // Tier 3: heuristic probe
-      const probeResult = probe(cwd);
-      if (!probeResult.rootName) {
-        console.error(chalk.yellow(`No Ralph Loop project detected in ${cwd}.`));
-        console.error('');
-        console.error('If this is a new project, scaffold a starter layout first:');
-        console.error(chalk.gray('      ralph-kit init'));
-        console.error('');
-        console.error('Or drop a .ralph-kit.json to declare the layout manually.');
-        process.exit(1);
-      }
-      profile = generateProfile(probeResult);
-      tier = 'heuristic';
-      console.log(chalk.green(`Detected Ralph project at  ${profile.root}/`));
+    if (scanResult.files.length === 0) {
+      console.error(chalk.yellow(`No Ralph Loop project detected in ${cwd}.`));
+      console.error('');
+      console.error('If this is a new project, scaffold a starter layout first:');
+      console.error(chalk.gray('      ralph-kit init'));
+      console.error('');
+      console.error('Or drop a .ralph-kit.json to declare the layout manually.');
+      process.exit(1);
     }
 
-    printProfileSummary(profile, tier, implName);
+    const profile = profileFromScan(scanResult);
+    console.log(chalk.green(`Detected Ralph project at  ${profile.root}/`));
+
+    // Show discovered files
+    if (scanResult.files.length > 0) {
+      console.log(chalk.gray(`  scanned   ${scanResult.files.length} ralph-related files found`));
+    }
+    if (scanResult.flavor) {
+      console.log(chalk.gray(`  flavor    ${scanResult.flavor}`));
+    }
+
+    // Show conflicts
+    for (const conflict of scanResult.conflicts) {
+      console.log(chalk.yellow(`  conflict  ${conflict.message}`));
+    }
+
+    printProfileSummary(profile, undefined, scanResult.flavor);
 
     const target = profilePath(cwd);
     if (opts.dryRun) {

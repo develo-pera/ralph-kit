@@ -3,8 +3,7 @@ import path from 'node:path';
 
 import { atomicWrite } from './writers';
 import type { ProbeResult, ProbedFile } from './probe';
-import { probe } from './probe';
-import { detect } from './fingerprint';
+import { scan, profileFromScan } from './scanner';
 
 export const PROFILE_DIR = '.ralph-kit';
 export const PROFILE_FILE = 'profile.json';
@@ -288,24 +287,18 @@ export function loadProfile(cwd: string): Profile {
     }
   }
 
-  // Tier 1 & 2: declaration file or known implementation fingerprint
-  const detected = detect(cwd);
-  if (detected) {
-    // Enrich with probe data — fingerprint identifies the implementation,
-    // but probe discovers the actual files inside the root (loop, breaker, log).
-    const probed = probe(cwd, detected.profile.root);
-    const enriched = probed.rootName ? generateProfile(probed) : detected.profile;
-    // Overlay fingerprint-specific fields that probe can't discover
-    if (detected.profile.taskFile) enriched.taskFile = detected.profile.taskFile;
-    if (detected.implementation) enriched.implementation = detected.implementation;
-    cache.set(cwd, enriched);
-    return enriched;
+  // Full-project scan — discovers all ralph-related files across the entire project
+  const scanResult = scan(cwd);
+  if (scanResult.files.length > 0) {
+    const scanned = profileFromScan(scanResult);
+    cache.set(cwd, scanned);
+    return scanned;
   }
 
-  // Tier 3: heuristic probe
-  const generated = generateProfile(probe(cwd));
-  cache.set(cwd, generated);
-  return generated;
+  // Fallback: default profile
+  const def = defaultProfile();
+  cache.set(cwd, def);
+  return def;
 }
 
 export function writeProfile(cwd: string, profile: Profile): string {
