@@ -142,15 +142,13 @@ export function buildBoard(cwd: string, profile: Profile = defaultProfile()): Bo
     const isProjectBlocked = !!statusLine && /blocked/i.test(statusLine);
 
     for (const name of fpDoc.sectionOrder) {
-      const isHigh = nameMatchesAny(name, profile.fixPlan?.highSections, /high|now|next|doing/i);
       const isBlocked = nameMatchesAny(name, profile.fixPlan?.blockedSections, /blocked/i);
       const isCompleted = nameMatchesAny(name, profile.fixPlan?.completedSections, /complete|done|shipped/i);
       for (const t of fpDoc.sections[name]) {
         const card: BoardCard = { text: t.text, source: 'fix_plan', priority: name, done: t.done };
         if (t.done || isCompleted) columns.done.push(card);
         else if (isBlocked) columns.blocked.push(card);
-        else if (isHigh) columns.todo.push(card);
-        else columns.backlog.push(card);
+        else columns.todo.push(card);
       }
     }
 
