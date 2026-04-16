@@ -15,6 +15,8 @@ import {
 } from '../lib/profile';
 import { probe } from '../lib/probe';
 import { scan, profileFromScan } from '../lib/scanner';
+import { listFlavors, getFlavor, type Flavor } from '../lib/flavors';
+import { execSync } from 'node:child_process';
 import { start } from '../server';
 import pkg from '../../package.json';
 
@@ -127,25 +129,139 @@ program
     }
   });
 
+function cloneFlavorFiles(cwd: string, flavor: Flavor): string[] {
+  if (!flavor.repo || flavor.filesToClone.length === 0) return [];
+
+  const cloned: string[] = [];
+  const tmpDir = path.join(os.tmpdir(), `ralph-kit-clone-${Date.now()}`);
+
+  try {
+    console.log(chalk.gray(`  cloning from ${flavor.repo}...`));
+    execSync(`git clone --depth 1 --branch ${flavor.branch} https://github.com/${flavor.repo}.git ${tmpDir}`, {
+      stdio: 'pipe',
+    });
+
+    for (const mapping of flavor.filesToClone) {
+      const src = path.join(tmpDir, mapping.from);
+      const dst = path.join(cwd, mapping.to);
+
+      if (!fs.existsSync(src)) {
+        console.log(chalk.yellow(`  ~ ${mapping.from} not found in repo — skipped`));
+        continue;
+      }
+
+      fs.mkdirSync(path.dirname(dst), { recursive: true });
+
+      if (fs.statSync(src).isDirectory()) {
+        fs.cpSync(src, dst, { recursive: true });
+      } else {
+        fs.copyFileSync(src, dst);
+      }
+
+      // Make shell scripts executable
+      if (mapping.to.endsWith('.sh')) {
+        fs.chmodSync(dst, 0o755);
+      }
+
+      cloned.push(mapping.to);
+      console.log(chalk.green(`  ✓ ${mapping.to}`));
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(chalk.red(`  clone failed: ${msg}`));
+    console.error(chalk.gray('  you can clone manually and re-run ralph-kit map'));
+  } finally {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch { /* ignore cleanup errors */ }
+  }
+
+  return cloned;
+}
+
 program
   .command('init')
-  .description('Scaffold a neutral Ralph directory (implementation-agnostic)')
+  .description('Set up a Ralph Loop project with a chosen flavor')
   .option('-d, --dir <dir>', 'project dir', process.cwd())
-  .action((opts: { dir: string }) => {
+  .option('--flavor <name>', 'flavor name (skip interactive selection)')
+  .option('--list', 'list available flavors and exit')
+  .action((opts: { dir: string; flavor?: string; list?: boolean }) => {
+    // List mode
+    if (opts.list) {
+      console.log(chalk.bold('Available flavors:\n'));
+      for (const f of listFlavors()) {
+        console.log(`  ${chalk.green(f.name.padEnd(20))} ${f.description}`);
+        if (f.repo) console.log(chalk.gray(`  ${''.padEnd(20)} ${f.repo}`));
+      }
+      return;
+    }
+
     const cwd = path.resolve(opts.dir);
+
+    // Select flavor
+    let flavor: Flavor | undefined;
+    if (opts.flavor) {
+      flavor = getFlavor(opts.flavor);
+      if (!flavor) {
+        console.error(chalk.red(`Unknown flavor: ${opts.flavor}`));
+        console.error('Available: ' + listFlavors().map((f) => f.name).join(', '));
+        process.exit(1);
+      }
+    } else {
+      // Non-interactive default: show choices and ask user to pick with --flavor
+      console.log(chalk.bold('Which Ralph Loop flavor do you want?\n'));
+      for (const f of listFlavors()) {
+        console.log(`  ${chalk.green(f.name.padEnd(20))} ${f.description}`);
+      }
+      console.log('');
+      console.log(`Run: ${chalk.cyan('ralph-kit init --flavor <name>')}`);
+      console.log('');
+      console.log(chalk.gray('Example:'));
+      console.log(chalk.gray('  ralph-kit init --flavor ralph-kit    # native, no external deps'));
+      console.log(chalk.gray('  ralph-kit init --flavor frankbria    # frankbria/ralph-claude-code'));
+      console.log(chalk.gray('  ralph-kit init --flavor snarktank    # snarktank/ralph'));
+      return;
+    }
+
+    console.log(chalk.bold(`\nInitializing with flavor: ${flavor.displayName}\n`));
+
+    // Step 1: Clone files from repo
+    const clonedPaths = cloneFlavorFiles(cwd, flavor);
+
+    // Step 2: Scaffold control files
+    console.log('');
     const profile = loadProfile(cwd);
     const created = doctor.scaffold(cwd, profile);
-    if (created.length === 0) {
-      console.log(chalk.gray(`${profile.root}/ already scaffolded — nothing to do`));
-    } else {
-      for (const f of created) console.log(chalk.green(`  ✓ created ${profile.root}/${f}`));
+    if (created.length > 0) {
+      console.log(chalk.bold('Scaffolded control files:'));
+      for (const f of created) console.log(chalk.green(`  ✓ ${profile.root}/${f}`));
     }
+
+    // Step 3: Write profile
+    const fullProfile = { ...profile, implementation: flavor.name };
+    if (flavor.taskFile) fullProfile.taskFile = flavor.taskFile;
+    const written = writeProfile(cwd, fullProfile);
+    console.log(chalk.green(`  ✓ ${path.relative(cwd, written)}`));
+
+    // Step 4: Run scan to verify
+    const scanResult = scan(cwd);
+    console.log('');
+    console.log(chalk.bold('Scan result:'));
+    console.log(chalk.gray(`  ${scanResult.files.length} ralph-related files found`));
+    if (scanResult.flavor) console.log(chalk.gray(`  flavor: ${scanResult.flavor}`));
+    for (const conflict of scanResult.conflicts) {
+      console.log(chalk.yellow(`  conflict: ${conflict.message}`));
+    }
+
+    // Step 5: Next steps
     console.log('');
     console.log(chalk.yellow('Next steps:'));
-    console.log('  1. Install your Ralph Loop implementation of choice');
-    console.log('     e.g.  npm i -g github:frankbria/ralph-claude-code  (and run `ralph enable`)');
-    console.log('  2. In Claude Code, run  /ralph-kit:define  to define the project');
-    console.log('  3. Start the dashboard:  ralph-kit board');
+    console.log('  1. In Claude Code, run  /ralph-kit:define  to define your project');
+    console.log('  2. Start the dashboard:  ralph-kit board');
+    if (flavor.repo && clonedPaths.some((p) => p.endsWith('.sh'))) {
+      const runner = clonedPaths.find((p) => p.endsWith('.sh'));
+      console.log(`  3. Start the loop:      ./${runner}`);
+    }
   });
 
 program
