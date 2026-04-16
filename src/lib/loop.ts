@@ -14,6 +14,7 @@ import { spawn } from 'node:child_process';
 
 import type { Profile } from './profile';
 import { atomicWrite } from './writers';
+import { createSpinner } from './spinner';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -184,6 +185,7 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
 
     let output = '';
     let jsonBuffer = '';
+    const spinner = createSpinner('Claude is working');
 
     child.stdout.on('data', (data: Buffer) => {
       jsonBuffer += data.toString();
@@ -199,11 +201,17 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
           const event = JSON.parse(trimmed) as StreamEvent;
           const formatted = formatStreamEvent(event);
           if (formatted) {
+            spinner.stop();
             output += formatted + '\n';
             process.stdout.write(formatted + '\n');
           }
+          // Update spinner with tool name if it's a tool call
+          if (event.type === 'tool_use' && event.tool_name) {
+            spinner.update(`Claude is working — ${event.tool_name}`);
+          }
         } catch {
           // Not JSON — pass through raw
+          spinner.stop();
           output += trimmed + '\n';
           process.stdout.write(trimmed + '\n');
         }
@@ -212,10 +220,12 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
 
     child.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
+      spinner.update();
       process.stderr.write(text);
     });
 
     child.on('close', (code) => {
+      spinner.stop(code === 0 ? 'done' : `exited with code ${code}`);
       // Process any remaining buffered data
       if (jsonBuffer.trim()) {
         try {

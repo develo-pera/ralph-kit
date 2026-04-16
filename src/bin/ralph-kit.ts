@@ -326,6 +326,7 @@ program
       appendToLog(`[${new Date().toISOString()}] ralph-kit run — delegating to ${runner.path}\n`);
 
       // Delegate to the external runner, capturing output for live.log
+      const { createSpinner } = await import('../lib/spinner.js');
       const { spawn: spawnChild } = await import('node:child_process');
       const args = ['--tool', 'claude', opts.max];
       const child = spawnChild(runnerPath, args, {
@@ -336,26 +337,35 @@ program
 
       // Parse iteration numbers from runner output to update loop_count
       const iterationRe = /Iteration\s+(\d+)\s+of\s+(\d+)/i;
+      const runnerSpinner = createSpinner('Claude is working');
 
       child.stdout.on('data', (data: Buffer) => {
         const text = data.toString();
+        runnerSpinner.update();
+        // Only clear spinner for substantive output (not blank lines)
+        if (text.trim()) {
+          runnerSpinner.stop();
+        }
         process.stdout.write(text);
         appendToLog(text);
 
         const match = text.match(iterationRe);
         if (match) {
           writeRunnerStatus('running', { loop_count: parseInt(match[1], 10) });
+          runnerSpinner.update(`Iteration ${match[1]} of ${match[2]}`);
         }
       });
 
       child.stderr.on('data', (data: Buffer) => {
         const text = data.toString();
+        runnerSpinner.update();
         process.stderr.write(text);
         appendToLog(text);
       });
 
       // Clean up on interrupt
       const runnerCleanup = () => {
+        runnerSpinner.stop('interrupted');
         writeRunnerStatus('interrupted', { last_action: 'user_cancelled' });
         appendToLog(`[${new Date().toISOString()}] Interrupted by user\n`);
         child.kill();
@@ -365,6 +375,7 @@ program
       process.on('SIGTERM', runnerCleanup);
 
       child.on('close', (code) => {
+        runnerSpinner.stop(code === 0 ? 'done' : `exited with code ${code}`);
         process.removeListener('SIGINT', runnerCleanup);
         process.removeListener('SIGTERM', runnerCleanup);
         const finalStatus = code === 0 ? 'complete' : 'halted';
@@ -374,6 +385,7 @@ program
       });
 
       child.on('error', (err) => {
+        runnerSpinner.stop('error');
         process.removeListener('SIGINT', runnerCleanup);
         process.removeListener('SIGTERM', runnerCleanup);
         writeRunnerStatus('halted', { exit_reason: err.message });
