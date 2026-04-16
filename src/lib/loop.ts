@@ -8,6 +8,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
@@ -129,11 +130,16 @@ function buildPrompt(cwd: string, profile: Profile, iteration: number): string {
 
 function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
-    const args = ['--dangerously-skip-permissions', '--print', '--allowedTools', allowedTools];
+    // Write prompt to a temp file — more reliable than stdin piping for Claude Code
+    const tmpPrompt = path.join(os.tmpdir(), `ralph-kit-prompt-${process.pid}-${Date.now()}.md`);
+    fs.writeFileSync(tmpPrompt, prompt, 'utf8');
 
-    const child = spawn('claude', args, {
+    // Use shell to redirect the file into claude's stdin, matching how snarktank does it
+    const cmd = `claude --dangerously-skip-permissions -p --allowedTools ${JSON.stringify(allowedTools)} < ${JSON.stringify(tmpPrompt)}`;
+
+    const child = spawn('sh', ['-c', cmd], {
       cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['inherit', 'pipe', 'pipe'],
       env: { ...process.env },
     });
 
@@ -151,14 +157,13 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
       process.stderr.write(text);
     });
 
-    child.stdin.write(prompt);
-    child.stdin.end();
-
     child.on('close', (code) => {
+      try { fs.unlinkSync(tmpPrompt); } catch { /* ignore */ }
       resolve({ output, exitCode: code ?? 1 });
     });
 
     child.on('error', (err) => {
+      try { fs.unlinkSync(tmpPrompt); } catch { /* ignore */ }
       resolve({ output: output + '\n' + err.message, exitCode: 1 });
     });
   });
