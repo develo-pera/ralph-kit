@@ -39,47 +39,58 @@ function missingRalphError(cwd: string, rootName: string): void {
   console.error(chalk.gray('      see https://ghuntley.com/ralph/ for the pattern and implementations'));
 }
 
-function printProfileSummary(profile: Profile, tier?: string, implName?: string): void {
-  const pad = (s: string, n = 10) => s.padEnd(n);
-  const root = profile.root;
-  if (tier) {
-    const label = implName ? `${tier} — ${implName}` : tier;
-    console.log(chalk.gray(`  ${pad('detected')}${label}`));
-  }
+function printProfileSummary(profile: Profile, scanResult?: import('../lib/scanner').ScanResult): void {
+  const pad = (s: string, n = 12) => s.padEnd(n);
+
+  // Loop runner (from scan)
+  const runner = scanResult?.files.find((f) => f.role === 'loopRunner');
+  console.log(chalk.gray(`  ${pad('runner')}${runner ? runner.path : '(none detected)'}`));
+
+  // Task file
+  const taskFile = scanResult?.files.find((f) => f.role === 'taskList');
   if (profile.taskFile) {
     console.log(chalk.gray(`  ${pad('tasks')}${profile.taskFile.file}  (${profile.taskFile.format})`));
+  } else if (taskFile) {
+    console.log(chalk.gray(`  ${pad('tasks')}${taskFile.path}  (${taskFile.format})`));
   }
+
+  // Loop status
   if (profile.loop) {
     const fields = [profile.loop.countField, profile.loop.statusField].filter(Boolean).join(', ');
-    console.log(chalk.gray(`  ${pad('loop')}${profile.loop.file}${fields ? `  (${fields})` : ''}`));
+    console.log(chalk.gray(`  ${pad('status')}${profile.loop.file}${fields ? `  (${fields})` : ''}`));
     if (profile.loop.fallback) {
       const fb = [profile.loop.fallback.countField, profile.loop.fallback.statusField]
         .filter(Boolean)
         .join(', ');
-      console.log(
-        chalk.gray(`  ${pad('fallback')}${profile.loop.fallback.file}${fb ? `  (${fb})` : ''}`),
-      );
+      console.log(chalk.gray(`  ${pad('fallback')}${profile.loop.fallback.file}${fb ? `  (${fb})` : ''}`));
     }
   } else {
-    console.log(chalk.gray(`  ${pad('loop')}(none detected)`));
+    console.log(chalk.gray(`  ${pad('status')}(no status.json — created at runtime)`));
   }
+
+  // Breaker
   console.log(
     chalk.gray(
-      `  ${pad('breaker')}${profile.breaker ? `${profile.breaker.file}${profile.breaker.fromStatus ? '  (from status)' : ''}${profile.breaker.reasonField ? `  (reason: ${profile.breaker.reasonField})` : ''}${profile.breaker.statusReasonField ? `  (reason: ${profile.breaker.statusReasonField})` : ''}` : '(none detected)'}`,
+      `  ${pad('breaker')}${profile.breaker ? `${profile.breaker.file}${profile.breaker.fromStatus ? '  (from status)' : ''}${profile.breaker.reasonField ? `  (reason: ${profile.breaker.reasonField})` : ''}${profile.breaker.statusReasonField ? `  (reason: ${profile.breaker.statusReasonField})` : ''}` : '(none — detected at runtime)'}`,
     ),
   );
+
+  // Live log
   console.log(
-    chalk.gray(`  ${pad('live log')}${profile.liveLog ? profile.liveLog.file : '(none detected)'}`),
+    chalk.gray(`  ${pad('live log')}${profile.liveLog ? profile.liveLog.file : '(none — created at runtime)'}`),
   );
+
+  // Fix plan sections
   const fp = profile.fixPlan;
   if (fp && (fp.blockedSections || fp.highSections || fp.completedSections)) {
     console.log(chalk.gray(`  fix_plan sections:`));
-    if (fp.blockedSections) console.log(chalk.gray(`    ${pad('blocked', 11)}${fp.blockedSections.join(', ')}`));
-    if (fp.highSections) console.log(chalk.gray(`    ${pad('high', 11)}${fp.highSections.join(', ')}`));
-    if (fp.completedSections)
-      console.log(chalk.gray(`    ${pad('completed', 11)}${fp.completedSections.join(', ')}`));
+    const secPad = (s: string) => s.padEnd(13);
+    if (fp.blockedSections) console.log(chalk.gray(`    ${secPad('blocked')}${fp.blockedSections.join(', ')}`));
+    if (fp.highSections) console.log(chalk.gray(`    ${secPad('high')}${fp.highSections.join(', ')}`));
+    if (fp.completedSections) console.log(chalk.gray(`    ${secPad('completed')}${fp.completedSections.join(', ')}`));
   }
-  console.log(chalk.gray(`  root dir: ${root}/`));
+
+  console.log(chalk.gray(`  ${pad('root dir')}${profile.root}/`));
 }
 
 program
@@ -363,7 +374,7 @@ program
       console.log(chalk.yellow(`  conflict  ${conflict.message}`));
     }
 
-    printProfileSummary(profile, undefined, scanResult.flavor);
+    printProfileSummary(profile, scanResult);
 
     const target = profilePath(cwd);
     if (opts.dryRun) {
