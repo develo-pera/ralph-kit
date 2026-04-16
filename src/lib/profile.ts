@@ -4,6 +4,7 @@ import path from 'node:path';
 import { atomicWrite } from './writers';
 import type { ProbeResult, ProbedFile } from './probe';
 import { probe } from './probe';
+import { detect } from './fingerprint';
 
 export const PROFILE_DIR = '.ralph-kit';
 export const PROFILE_FILE = 'profile.json';
@@ -44,9 +45,18 @@ export interface FixPlanProfile {
   completedSections?: string[];
 }
 
+export interface TaskFileProfile {
+  file: string;
+  format: 'markdown' | 'json';
+}
+
 export interface Profile {
   version: typeof PROFILE_VERSION;
   root: string;
+  /** When set, tasks come from this file instead of fix_plan.md. */
+  taskFile?: TaskFileProfile;
+  /** Which known implementation was detected (e.g. 'frankbria', 'snarktank'). */
+  implementation?: string;
   loop?: LoopProfile;
   breaker?: BreakerProfile;
   liveLog?: LiveLogProfile;
@@ -278,6 +288,16 @@ export function loadProfile(cwd: string): Profile {
     }
   }
 
+  // Tier 1 & 2: declaration file or known implementation fingerprint
+  const detected = detect(cwd);
+  if (detected) {
+    const profile = detected.profile;
+    if (detected.implementation) profile.implementation = detected.implementation;
+    cache.set(cwd, profile);
+    return profile;
+  }
+
+  // Tier 3: heuristic probe
   const generated = generateProfile(probe(cwd));
   cache.set(cwd, generated);
   return generated;
