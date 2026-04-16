@@ -128,14 +128,53 @@ function buildPrompt(cwd: string, profile: Profile, iteration: number): string {
 // Single iteration
 // ---------------------------------------------------------------------------
 
+interface StreamEvent {
+  type: string;
+  subtype?: string;
+  tool_name?: string;
+  content?: string;
+  message?: { role?: string; content?: unknown };
+  [key: string]: unknown;
+}
+
+function formatStreamEvent(event: StreamEvent): string | null {
+  switch (event.type) {
+    case 'assistant': {
+      // Text output from Claude
+      if (event.subtype === 'text') return event.content ?? null;
+      return null;
+    }
+    case 'tool_use': {
+      const name = event.tool_name ?? 'tool';
+      return `  → ${name}`;
+    }
+    case 'tool_result': {
+      return null; // too noisy
+    }
+    case 'result': {
+      // Final result — extract text content
+      const msg = event.message;
+      if (msg && Array.isArray(msg.content)) {
+        const texts = (msg.content as Array<{ type: string; text?: string }>)
+          .filter((b) => b.type === 'text' && b.text)
+          .map((b) => b.text);
+        return texts.join('\n') || null;
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
-    // Write prompt to a temp file — more reliable than stdin piping for Claude Code
+    // Write prompt to a temp file
     const tmpPrompt = path.join(os.tmpdir(), `ralph-kit-prompt-${process.pid}-${Date.now()}.md`);
     fs.writeFileSync(tmpPrompt, prompt, 'utf8');
 
-    // Use shell to redirect the file into claude's stdin, matching how snarktank does it
-    const cmd = `claude --dangerously-skip-permissions -p --allowedTools ${JSON.stringify(allowedTools)} < ${JSON.stringify(tmpPrompt)}`;
+    // Use stream-json for real-time output
+    const cmd = `claude --dangerously-skip-permissions -p --output-format stream-json --allowedTools ${JSON.stringify(allowedTools)} < ${JSON.stringify(tmpPrompt)}`;
 
     const child = spawn('sh', ['-c', cmd], {
       cwd,
@@ -144,20 +183,52 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
     });
 
     let output = '';
+    let jsonBuffer = '';
 
     child.stdout.on('data', (data: Buffer) => {
-      const text = data.toString();
-      output += text;
-      process.stdout.write(text);
+      jsonBuffer += data.toString();
+
+      // stream-json sends one JSON object per line
+      const lines = jsonBuffer.split('\n');
+      jsonBuffer = lines.pop() ?? ''; // keep incomplete last line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const event = JSON.parse(trimmed) as StreamEvent;
+          const formatted = formatStreamEvent(event);
+          if (formatted) {
+            output += formatted + '\n';
+            process.stdout.write(formatted + '\n');
+          }
+        } catch {
+          // Not JSON — pass through raw
+          output += trimmed + '\n';
+          process.stdout.write(trimmed + '\n');
+        }
+      }
     });
 
     child.stderr.on('data', (data: Buffer) => {
       const text = data.toString();
-      output += text;
       process.stderr.write(text);
     });
 
     child.on('close', (code) => {
+      // Process any remaining buffered data
+      if (jsonBuffer.trim()) {
+        try {
+          const event = JSON.parse(jsonBuffer.trim()) as StreamEvent;
+          const formatted = formatStreamEvent(event);
+          if (formatted) {
+            output += formatted + '\n';
+            process.stdout.write(formatted + '\n');
+          }
+        } catch {
+          output += jsonBuffer;
+        }
+      }
       try { fs.unlinkSync(tmpPrompt); } catch { /* ignore */ }
       resolve({ output, exitCode: code ?? 1 });
     });
