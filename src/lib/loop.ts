@@ -201,7 +201,7 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
           const event = JSON.parse(trimmed) as StreamEvent;
           const formatted = formatStreamEvent(event);
           if (formatted) {
-            spinner.stop();
+            spinner.clear();
             output += formatted + '\n';
             process.stdout.write(formatted + '\n');
           }
@@ -211,7 +211,7 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
           }
         } catch {
           // Not JSON — pass through raw
-          spinner.stop();
+          spinner.clear();
           output += trimmed + '\n';
           process.stdout.write(trimmed + '\n');
         }

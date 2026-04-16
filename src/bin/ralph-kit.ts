@@ -341,13 +341,11 @@ program
 
       child.stdout.on('data', (data: Buffer) => {
         const text = data.toString();
-        runnerSpinner.update();
-        // Only clear spinner for substantive output (not blank lines)
-        if (text.trim()) {
-          runnerSpinner.stop();
-        }
+        // Clear spinner line so output prints cleanly, then spinner auto-resumes
+        runnerSpinner.clear();
         process.stdout.write(text);
         appendToLog(text);
+        runnerSpinner.update();
 
         const match = text.match(iterationRe);
         if (match) {
@@ -358,9 +356,10 @@ program
 
       child.stderr.on('data', (data: Buffer) => {
         const text = data.toString();
-        runnerSpinner.update();
+        runnerSpinner.clear();
         process.stderr.write(text);
         appendToLog(text);
+        runnerSpinner.update();
       });
 
       // Clean up on interrupt

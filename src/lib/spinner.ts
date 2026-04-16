@@ -7,6 +7,8 @@ const FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '
 
 export interface Spinner {
   update: (message?: string) => void;
+  /** Temporarily clear the spinner line so other output can print cleanly. Auto-resumes. */
+  clear: () => void;
   stop: (finalMessage?: string) => void;
 }
 
@@ -42,6 +44,10 @@ export function createSpinner(initialMessage: string): Spinner {
     update(newMessage?: string) {
       if (newMessage) message = newMessage;
       lastActivity = Date.now();
+    },
+    clear() {
+      // Wipe the spinner line so other output prints cleanly; spinner auto-resumes on next tick
+      process.stderr.write('\r\x1b[K');
     },
     stop(finalMessage?: string) {
       stopped = true;
