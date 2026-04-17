@@ -146,42 +146,83 @@ function buildPrompt(cwd: string, profile: Profile, iteration: number): string {
 // Single iteration
 // ---------------------------------------------------------------------------
 
+interface ContentBlock {
+  type: string;
+  text?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+}
+
 interface StreamEvent {
   type: string;
   subtype?: string;
-  tool_name?: string;
-  content?: string;
-  message?: { role?: string; content?: unknown };
+  message?: { role?: string; content?: ContentBlock[] };
+  result?: string;
+  is_error?: boolean;
   [key: string]: unknown;
 }
 
-function formatStreamEvent(event: StreamEvent): string | null {
+/**
+ * Shorten a tool_use input to a single identifying argument so the log stays
+ * readable. Picks the most informative field per tool; falls back to the first
+ * string value.
+ */
+function summarizeToolInput(name: string, input: Record<string, unknown> | undefined): string {
+  if (!input) return '';
+  const priority: Record<string, string[]> = {
+    Read: ['file_path'],
+    Edit: ['file_path'],
+    Write: ['file_path'],
+    Bash: ['command'],
+    Grep: ['pattern'],
+    Glob: ['pattern'],
+  };
+  const fields = priority[name] ?? Object.keys(input);
+  for (const f of fields) {
+    const v = input[f];
+    if (typeof v === 'string' && v.trim()) {
+      const clean = v.replace(/\s+/g, ' ').trim();
+      return clean.length > 80 ? clean.slice(0, 77) + '...' : clean;
+    }
+  }
+  return '';
+}
+
+/** Returns the most recent tool_use name in an assistant event, if any. */
+function latestToolUseName(event: StreamEvent): string | null {
+  if (event.type !== 'assistant') return null;
+  const blocks = event.message?.content ?? [];
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const b = blocks[i];
+    if (b.type === 'tool_use' && b.name) return b.name;
+  }
+  return null;
+}
+
+function formatStreamEvent(event: StreamEvent): string[] {
+  const lines: string[] = [];
   switch (event.type) {
     case 'assistant': {
-      // Text output from Claude
-      if (event.subtype === 'text') return event.content ?? null;
-      return null;
-    }
-    case 'tool_use': {
-      const name = event.tool_name ?? 'tool';
-      return `  → ${name}`;
-    }
-    case 'tool_result': {
-      return null; // too noisy
+      for (const block of event.message?.content ?? []) {
+        if (block.type === 'text' && block.text?.trim()) {
+          lines.push(block.text);
+        } else if (block.type === 'tool_use' && block.name) {
+          const summary = summarizeToolInput(block.name, block.input);
+          lines.push(summary ? `  → ${block.name}(${summary})` : `  → ${block.name}`);
+        }
+      }
+      return lines;
     }
     case 'result': {
-      // Final result — extract text content
-      const msg = event.message;
-      if (msg && Array.isArray(msg.content)) {
-        const texts = (msg.content as Array<{ type: string; text?: string }>)
-          .filter((b) => b.type === 'text' && b.text)
-          .map((b) => b.text);
-        return texts.join('\n') || null;
+      // Final message is usually already printed via streamed assistant text.
+      // Only surface it here if it carries a fresh error payload.
+      if (event.is_error && typeof event.result === 'string' && event.result.trim()) {
+        lines.push(`  ✗ ${event.result}`);
       }
-      return null;
+      return lines;
     }
     default:
-      return null;
+      return lines;
   }
 }
 
@@ -217,15 +258,20 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
         try {
           const event = JSON.parse(trimmed) as StreamEvent;
           const formatted = formatStreamEvent(event);
-          if (formatted) {
+          if (formatted.length > 0) {
             spinner.clear();
-            output += formatted + '\n';
-            process.stdout.write(formatted + '\n');
+            for (const l of formatted) {
+              output += l + '\n';
+              process.stdout.write(l + '\n');
+            }
           }
-          // Update spinner with tool name if it's a tool call
-          if (event.type === 'tool_use' && event.tool_name) {
-            spinner.update(`Claude is working — ${event.tool_name}`);
+          // Always keep the final result in `output` so status parsing works
+          // even if the streamed text didn't carry the RALPH_STATUS block.
+          if (event.type === 'result' && typeof event.result === 'string') {
+            output += event.result + '\n';
           }
+          const toolName = latestToolUseName(event);
+          if (toolName) spinner.update(`Claude is working — ${toolName}`);
         } catch {
           // Not JSON — pass through raw
           spinner.clear();
@@ -247,10 +293,12 @@ function runClaude(prompt: string, cwd: string, allowedTools: string): Promise<{
       if (jsonBuffer.trim()) {
         try {
           const event = JSON.parse(jsonBuffer.trim()) as StreamEvent;
-          const formatted = formatStreamEvent(event);
-          if (formatted) {
-            output += formatted + '\n';
-            process.stdout.write(formatted + '\n');
+          for (const l of formatStreamEvent(event)) {
+            output += l + '\n';
+            process.stdout.write(l + '\n');
+          }
+          if (event.type === 'result' && typeof event.result === 'string') {
+            output += event.result + '\n';
           }
         } catch {
           output += jsonBuffer;
