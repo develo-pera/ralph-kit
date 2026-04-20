@@ -11,6 +11,10 @@ Conversational questionnaire + local Kanban dashboard + loop runner for Claude C
 
 Works with any Ralph Loop implementation — [frankbria/ralph-claude-code](https://github.com/frankbria/ralph-claude-code), [snarktank/ralph](https://github.com/snarktank/ralph), or a custom setup. ralph-kit scans your entire project, detects the layout, and drives the board and loop runner automatically.
 
+## Demo
+
+[![ralph-kit demo](https://img.youtube.com/vi/1iISpEKfJyQ/maxresdefault.jpg)](https://youtu.be/1iISpEKfJyQ)
+
 ## Quick start
 
 ### 1. Install
